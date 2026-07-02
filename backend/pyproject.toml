@@ -1,0 +1,32 @@
+[project]
+name = "assetvault-backend"
+version = "0.1.0"
+description = "LocalAsset Vault — FastAPI backend for a 2D/3D digital asset manager"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "sqlalchemy>=2.0",
+    "psycopg[binary]>=3.2",
+    "pydantic-settings>=2.6",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "httpx>=0.28",
+    "ruff>=0.9",
+]
+
+[tool.uv]
+# Use the OS certificate store when talking to PyPI (your system uses a
+# custom/corporate root CA that uv's bundled certs don't recognize).
+system-certs = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
