@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
 
     # Auth (used from Phase 2)
-    jwt_secret: str = "change-me-in-production"
+    jwt_secret: str = "dev-secret-change-me-in-production-min-32-bytes"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
 
