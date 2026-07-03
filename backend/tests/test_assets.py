@@ -118,3 +118,100 @@ def test_upload_rejects_oversized_file(
         files={"file": ("hero.png", _png_bytes(), "image/png")},
     )
     assert resp.status_code == 413
+
+
+def _upload(client: TestClient, headers: dict[str, str], name: str = "hero.png") -> dict:
+    resp = client.post(
+        "/assets", headers=headers, files={"file": (name, _png_bytes(), "image/png")}
+    )
+    assert resp.status_code == 201, resp.text
+    return resp.json()
+
+
+def test_list_assets_is_paginated(client: TestClient, storage_dir: Path) -> None:
+    headers = _auth_headers(client)
+    for i in range(3):
+        _upload(client, headers, name=f"a{i}.png")
+
+    resp = client.get("/assets", headers=headers, params={"limit": 2, "offset": 0})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["total"] == 3
+    assert body["limit"] == 2 and body["offset"] == 0
+    assert len(body["items"]) == 2
+
+    page2 = client.get("/assets", headers=headers, params={"limit": 2, "offset": 2}).json()
+    assert len(page2["items"]) == 1
+
+
+def test_list_returns_only_own_assets(client: TestClient, storage_dir: Path) -> None:
+    alice = _auth_headers(client, "alice@example.com")
+    bob = _auth_headers(client, "bob@example.com")
+    _upload(client, alice)
+
+    assert client.get("/assets", headers=bob).json()["total"] == 0
+    assert client.get("/assets", headers=alice).json()["total"] == 1
+
+
+def test_get_asset_and_ownership(client: TestClient, storage_dir: Path) -> None:
+    alice = _auth_headers(client, "alice@example.com")
+    bob = _auth_headers(client, "bob@example.com")
+    asset = _upload(client, alice)
+
+    assert client.get(f"/assets/{asset['id']}", headers=alice).status_code == 200
+    # Bob cannot see Alice's asset — 404, not 403, to avoid leaking existence.
+    assert client.get(f"/assets/{asset['id']}", headers=bob).status_code == 404
+    assert client.get("/assets/999999", headers=alice).status_code == 404
+
+
+def test_patch_updates_description_and_rating(client: TestClient, storage_dir: Path) -> None:
+    headers = _auth_headers(client)
+    asset = _upload(client, headers)
+
+    resp = client.patch(
+        f"/assets/{asset['id']}",
+        headers=headers,
+        json={"description": "A blue square", "rating": 5},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["description"] == "A blue square"
+    assert body["rating"] == 5
+
+
+def test_patch_rejects_out_of_range_rating(client: TestClient, storage_dir: Path) -> None:
+    headers = _auth_headers(client)
+    asset = _upload(client, headers)
+    resp = client.patch(f"/assets/{asset['id']}", headers=headers, json={"rating": 9})
+    assert resp.status_code == 422
+
+
+def test_patch_rejects_unknown_category(client: TestClient, storage_dir: Path) -> None:
+    headers = _auth_headers(client)
+    asset = _upload(client, headers)
+    resp = client.patch(
+        f"/assets/{asset['id']}", headers=headers, json={"category_id": 999999}
+    )
+    assert resp.status_code == 400
+
+
+def test_delete_removes_record_and_files(client: TestClient, storage_dir: Path) -> None:
+    headers = _auth_headers(client)
+    asset = _upload(client, headers)
+    file_on_disk = storage_dir / asset["file_path"]
+    thumb_on_disk = storage_dir / asset["thumbnail_path"]
+    assert file_on_disk.exists() and thumb_on_disk.exists()
+
+    resp = client.delete(f"/assets/{asset['id']}", headers=headers)
+    assert resp.status_code == 204
+
+    assert client.get(f"/assets/{asset['id']}", headers=headers).status_code == 404
+    assert not file_on_disk.exists()
+    assert not thumb_on_disk.exists()
+
+
+def test_delete_enforces_ownership(client: TestClient, storage_dir: Path) -> None:
+    alice = _auth_headers(client, "alice@example.com")
+    bob = _auth_headers(client, "bob@example.com")
+    asset = _upload(client, alice)
+    assert client.delete(f"/assets/{asset['id']}", headers=bob).status_code == 404

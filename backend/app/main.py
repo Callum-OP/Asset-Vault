@@ -2,9 +2,11 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import assets, auth, health
 from app.core.config import get_settings
+from app.services.storage import get_storage
 
 settings = get_settings()
 
@@ -25,6 +27,10 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(assets.router)
+
+# Serve uploaded files & generated thumbnails. Stored filenames are random
+# UUIDs, so paths act as unguessable capability URLs for this local app.
+app.mount("/storage", StaticFiles(directory=get_storage().base_dir), name="storage")
 
 
 @app.get("/", tags=["root"])
