@@ -50,6 +50,38 @@ npm run dev                   # http://localhost:5173
   curling the backend directly. The Vite dev proxy already targets `127.0.0.1`.
 - **Postgres:** local server on `:5432`, default `postgres`/`postgres`, database `assetvault`.
 
+## Authentication
+The API supports two ways to sign in, both of which return the same app JWT:
+- **Email + password** — `POST /auth/register`, then `POST /auth/login`.
+- **Sign in with Google** (passwordless) — the browser gets a Google ID token and
+  posts it to `POST /auth/google`; the backend verifies it and logs the user in,
+  creating (or linking) the account automatically.
+
+Google Sign-In is **optional** and stays disabled until you set `GOOGLE_CLIENT_ID`.
+While disabled, `POST /auth/google` returns `503`; the rest of auth is unaffected.
+
+### Google Sign-In setup
+You need a free **OAuth Client ID** from Google. It's public (safe to commit to
+`.env` locally), and there is no secret to manage with this flow.
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/) and create
+   a project (or pick an existing one).
+2. **APIs & Services → OAuth consent screen**: choose **External**, give the app a
+   name and your email, and save. Add yourself under **Test users**.
+3. **APIs & Services → Credentials → Create Credentials → OAuth client ID**.
+   - Application type: **Web application**.
+   - **Authorized JavaScript origins**: add `http://localhost:5173` (the frontend).
+   - Create it and copy the **Client ID** (looks like
+     `1234567890-abc123.apps.googleusercontent.com`).
+4. Paste it into `backend/.env`:
+   ```
+   GOOGLE_CLIENT_ID=1234567890-abc123.apps.googleusercontent.com
+   ```
+5. Restart the backend. `POST /auth/google` now verifies real Google tokens.
+
+> The "Sign in with Google" button on the frontend lands with the auth UI
+> (Phase 7); the same `GOOGLE_CLIENT_ID` will be reused there.
+
 ## Project layout
 ```
 Asset-Vault/

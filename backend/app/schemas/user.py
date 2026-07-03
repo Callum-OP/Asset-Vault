@@ -15,4 +15,6 @@ class UserRead(BaseModel):
 
     id: int
     email: EmailStr
+    full_name: str | None = None
+    avatar_url: str | None = None
     created_at: datetime

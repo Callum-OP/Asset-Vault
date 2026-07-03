@@ -18,10 +18,17 @@ class Settings(BaseSettings):
     # CORS (comma-separated origins)
     cors_origins: str = "http://localhost:5173"
 
+    # Storage
+    storage_dir: str = "storage"
+    max_upload_bytes: int = 52_428_800  # 50 MiB
+
     # Auth (used from Phase 2)
     jwt_secret: str = "dev-secret-change-me-in-production-min-32-bytes"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
+
+    # Google Sign-In — OAuth 2.0 Client ID (public). Empty disables the feature.
+    google_client_id: str = ""
 
     @property
     def database_url(self) -> str:
