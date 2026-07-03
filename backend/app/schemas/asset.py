@@ -5,6 +5,8 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models import AssetType
+from app.schemas.category import CategoryRead
+from app.schemas.tag import TagRead
 
 
 class AssetRead(BaseModel):
@@ -25,6 +27,8 @@ class AssetRead(BaseModel):
     source_url: str | None
     rating: int | None
     category_id: int | None
+    category: CategoryRead | None = None
+    tags: list[TagRead] = []
     created_at: datetime
     updated_at: datetime
 
@@ -43,3 +47,19 @@ class AssetList(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class AssetTagsAdd(BaseModel):
+    tag_ids: list[int] = Field(min_length=1)
+
+
+class AssetBatchUpdate(BaseModel):
+    asset_ids: list[int] = Field(min_length=1)
+    add_tag_ids: list[int] = []
+    remove_tag_ids: list[int] = []
+    category_id: int | None = None
+    rating: int | None = Field(default=None, ge=0, le=5)
+
+
+class BatchResult(BaseModel):
+    updated: int

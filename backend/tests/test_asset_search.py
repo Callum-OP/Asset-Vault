@@ -3,10 +3,9 @@
 from pathlib import Path
 
 from fastapi.testclient import TestClient
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Asset, Category, Tag, User
+from app.models import Asset, Category, Tag
 from tests.helpers import auth_headers, upload
 
 RED = (200, 40, 60)
@@ -83,13 +82,12 @@ def test_invalid_color_returns_422(client: TestClient, storage_dir: Path) -> Non
 
 
 def test_filter_by_category_name(client: TestClient, db_session: Session, storage_dir: Path) -> None:
-    email = "cat@example.com"
-    h = auth_headers(client, email)
+    h = auth_headers(client, "cat")
     a1 = upload(client, h, name="in_cat.png")
     upload(client, h, name="no_cat.png")
 
-    user = db_session.scalar(select(User).where(User.email == email))
-    category = Category(name="Environments", owner_id=user.id)
+    user_id = client.get("/auth/me", headers=h).json()["id"]
+    category = Category(name="Environments", owner_id=user_id)
     db_session.add(category)
     db_session.flush()
     asset = db_session.get(Asset, a1["id"])
@@ -103,14 +101,13 @@ def test_filter_by_category_name(client: TestClient, db_session: Session, storag
 
 
 def test_filter_by_tag_requires_all(client: TestClient, db_session: Session, storage_dir: Path) -> None:
-    email = "tags@example.com"
-    h = auth_headers(client, email)
+    h = auth_headers(client, "tags")
     both = upload(client, h, name="both.png")
     one = upload(client, h, name="one.png")
 
-    user = db_session.scalar(select(User).where(User.email == email))
-    low_poly = Tag(name="low-poly", owner_id=user.id)
-    stylized = Tag(name="stylized", owner_id=user.id)
+    user_id = client.get("/auth/me", headers=h).json()["id"]
+    low_poly = Tag(name="low-poly", owner_id=user_id)
+    stylized = Tag(name="stylized", owner_id=user_id)
     db_session.add_all([low_poly, stylized])
     both_asset = db_session.get(Asset, both["id"])
     one_asset = db_session.get(Asset, one["id"])

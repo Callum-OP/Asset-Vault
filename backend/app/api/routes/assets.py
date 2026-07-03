@@ -8,14 +8,21 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy import and_, func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy.sql import Select
 
 from app.api.deps import CurrentUser
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.models import Asset, AssetType, Category, Tag, User
-from app.schemas.asset import AssetList, AssetRead, AssetUpdate
+from app.schemas.asset import (
+    AssetBatchUpdate,
+    AssetList,
+    AssetRead,
+    AssetTagsAdd,
+    AssetUpdate,
+    BatchResult,
+)
 from app.services import color as color_service
 from app.services import media
 from app.services.storage import LocalStorage, get_storage
@@ -34,12 +41,28 @@ router = APIRouter(prefix="/assets", tags=["assets"])
 settings = get_settings()
 
 
+_EAGER = (selectinload(Asset.tags), joinedload(Asset.category))
+
+
 def _get_owned_asset(asset_id: int, db: Session, user: User) -> Asset:
     """Return the asset if it exists and belongs to the user, else 404."""
     asset = db.get(Asset, asset_id)
     if asset is None or asset.owner_id != user.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Asset not found")
     return asset
+
+
+def _get_owned_tags(tag_ids: list[int], db: Session, user: User) -> list[Tag]:
+    """Fetch the user's tags for the given ids, or 400 if any is missing."""
+    if not tag_ids:
+        return []
+    unique_ids = set(tag_ids)
+    tags = db.scalars(
+        select(Tag).where(Tag.id.in_(unique_ids), Tag.owner_id == user.id)
+    ).all()
+    if len(tags) != len(unique_ids):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "One or more tags not found")
+    return list(tags)
 
 
 @router.post("", response_model=AssetRead, status_code=status.HTTP_201_CREATED)
@@ -169,16 +192,91 @@ def list_assets(
         if bucket is None:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"Unknown color: {color}")
         rows = [
-            a for a in db.scalars(stmt).all()
+            a for a in db.scalars(stmt.options(*_EAGER)).all()
             if color_service.colors_match_bucket(a.dominant_colors, bucket)
         ]
         total = len(rows)
         items = rows[offset : offset + limit]
     else:
         total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
-        items = list(db.scalars(stmt.limit(limit).offset(offset)).all())
+        items = list(db.scalars(stmt.options(*_EAGER).limit(limit).offset(offset)).all())
 
     return AssetList(items=items, total=total, limit=limit, offset=offset)
+
+
+@router.post("/batch", response_model=BatchResult)
+def batch_update_assets(
+    payload: AssetBatchUpdate,
+    current_user: CurrentUser,
+    db: Annotated[Session, Depends(get_db)],
+) -> BatchResult:
+    """Apply tag/category/rating changes to many owned assets at once."""
+    unique_ids = set(payload.asset_ids)
+    assets = db.scalars(
+        select(Asset)
+        .where(Asset.id.in_(unique_ids), Asset.owner_id == current_user.id)
+        .options(selectinload(Asset.tags))
+    ).all()
+    if len(assets) != len(unique_ids):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "One or more assets not found")
+
+    add_tags = _get_owned_tags(payload.add_tag_ids, db, current_user)
+    _get_owned_tags(payload.remove_tag_ids, db, current_user)  # validate ownership
+    remove_ids = set(payload.remove_tag_ids)
+
+    fields = payload.model_fields_set
+    if "category_id" in fields and payload.category_id is not None:
+        category = db.get(Category, payload.category_id)
+        if category is None or category.owner_id != current_user.id:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid category")
+
+    for asset in assets:
+        existing = {t.id for t in asset.tags}
+        for tag in add_tags:
+            if tag.id not in existing:
+                asset.tags.append(tag)
+        if remove_ids:
+            asset.tags = [t for t in asset.tags if t.id not in remove_ids]
+        if "category_id" in fields:
+            asset.category_id = payload.category_id
+        if "rating" in fields:
+            asset.rating = payload.rating
+
+    db.commit()
+    return BatchResult(updated=len(assets))
+
+
+@router.post("/{asset_id}/tags", response_model=AssetRead)
+def add_asset_tags(
+    asset_id: int,
+    payload: AssetTagsAdd,
+    current_user: CurrentUser,
+    db: Annotated[Session, Depends(get_db)],
+) -> Asset:
+    """Attach one or more tags to an asset (idempotent)."""
+    asset = _get_owned_asset(asset_id, db, current_user)
+    existing = {t.id for t in asset.tags}
+    for tag in _get_owned_tags(payload.tag_ids, db, current_user):
+        if tag.id not in existing:
+            asset.tags.append(tag)
+    db.commit()
+    db.refresh(asset)
+    return asset
+
+
+@router.delete("/{asset_id}/tags/{tag_id}", response_model=AssetRead)
+def remove_asset_tag(
+    asset_id: int,
+    tag_id: int,
+    current_user: CurrentUser,
+    db: Annotated[Session, Depends(get_db)],
+) -> Asset:
+    """Detach a single tag from an asset."""
+    asset = _get_owned_asset(asset_id, db, current_user)
+    asset.tags = [t for t in asset.tags if t.id != tag_id]
+    db.commit()
+    db.refresh(asset)
+    return asset
 
 
 @router.get("/{asset_id}", response_model=AssetRead)

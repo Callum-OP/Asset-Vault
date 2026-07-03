@@ -112,8 +112,8 @@ def test_list_assets_is_paginated(client: TestClient, storage_dir: Path) -> None
 
 
 def test_list_returns_only_own_assets(client: TestClient, storage_dir: Path) -> None:
-    alice = _auth_headers(client, "alice@example.com")
-    bob = _auth_headers(client, "bob@example.com")
+    alice = _auth_headers(client, "alice")
+    bob = _auth_headers(client, "bob")
     _upload(client, alice)
 
     assert client.get("/assets", headers=bob).json()["total"] == 0
@@ -121,8 +121,8 @@ def test_list_returns_only_own_assets(client: TestClient, storage_dir: Path) -> 
 
 
 def test_get_asset_and_ownership(client: TestClient, storage_dir: Path) -> None:
-    alice = _auth_headers(client, "alice@example.com")
-    bob = _auth_headers(client, "bob@example.com")
+    alice = _auth_headers(client, "alice")
+    bob = _auth_headers(client, "bob")
     asset = _upload(client, alice)
 
     assert client.get(f"/assets/{asset['id']}", headers=alice).status_code == 200
@@ -178,7 +178,7 @@ def test_delete_removes_record_and_files(client: TestClient, storage_dir: Path) 
 
 
 def test_delete_enforces_ownership(client: TestClient, storage_dir: Path) -> None:
-    alice = _auth_headers(client, "alice@example.com")
-    bob = _auth_headers(client, "bob@example.com")
+    alice = _auth_headers(client, "alice")
+    bob = _auth_headers(client, "bob")
     asset = _upload(client, alice)
     assert client.delete(f"/assets/{asset['id']}", headers=bob).status_code == 404
