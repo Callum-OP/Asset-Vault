@@ -4,19 +4,30 @@ from __future__ import annotations
 
 import mimetypes
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile, status
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import Select
 
 from app.api.deps import CurrentUser
 from app.core.config import get_settings
 from app.core.database import get_db
-from app.models import Asset, Category, User
+from app.models import Asset, AssetType, Category, Tag, User
 from app.schemas.asset import AssetList, AssetRead, AssetUpdate
+from app.services import color as color_service
 from app.services import media
 from app.services.storage import LocalStorage, get_storage
+
+_SORT_COLUMNS = {
+    "created_at": Asset.created_at,
+    "rating": Asset.rating,
+    "file_size": Asset.file_size,
+    "original_filename": Asset.original_filename,
+}
+SortField = Literal["created_at", "rating", "file_size", "original_filename"]
+SortOrder = Literal["asc", "desc"]
 
 router = APIRouter(prefix="/assets", tags=["assets"])
 
@@ -107,14 +118,67 @@ def list_assets(
     db: Annotated[Session, Depends(get_db)],
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
+    q: Annotated[str | None, Query(description="Search filename & description")] = None,
+    type: Annotated[AssetType | None, Query(description="Filter by asset type")] = None,
+    min_rating: Annotated[int | None, Query(ge=0, le=5)] = None,
+    category: Annotated[str | None, Query(description="Category name")] = None,
+    tag: Annotated[list[str] | None, Query(description="Tag name(s); asset must have all")] = None,
+    color: Annotated[str | None, Query(description="Color bucket name or hex")] = None,
+    sort: SortField = "created_at",
+    order: SortOrder = "desc",
 ) -> AssetList:
-    """List the current user's assets, newest first, paginated."""
-    owned = select(Asset).where(Asset.owner_id == current_user.id)
-    total = db.scalar(select(func.count()).select_from(owned.subquery())) or 0
-    items = db.scalars(
-        owned.order_by(Asset.created_at.desc(), Asset.id.desc()).limit(limit).offset(offset)
-    ).all()
-    return AssetList(items=list(items), total=total, limit=limit, offset=offset)
+    """List the current user's assets with optional filtering, search, and sorting."""
+    stmt: Select = select(Asset).where(Asset.owner_id == current_user.id)
+
+    if q:
+        like = f"%{q}%"
+        stmt = stmt.where(
+            or_(Asset.original_filename.ilike(like), Asset.description.ilike(like))
+        )
+    if type is not None:
+        stmt = stmt.where(Asset.asset_type == type)
+    if min_rating is not None:
+        stmt = stmt.where(Asset.rating >= min_rating)
+    if category:
+        stmt = stmt.where(
+            Asset.category.has(
+                and_(
+                    func.lower(Category.name) == category.lower(),
+                    Category.owner_id == current_user.id,
+                )
+            )
+        )
+    for tag_name in tag or []:
+        stmt = stmt.where(
+            Asset.tags.any(
+                and_(
+                    func.lower(Tag.name) == tag_name.lower(),
+                    Tag.owner_id == current_user.id,
+                )
+            )
+        )
+
+    sort_col = _SORT_COLUMNS[sort]
+    sort_col = sort_col.asc() if order == "asc" else sort_col.desc()
+    stmt = stmt.order_by(sort_col, Asset.id.desc())
+
+    # Color matching is bucket-based, so it's applied in Python after the SQL
+    # filters. Acceptable for a personal-scale library.
+    if color:
+        bucket = color_service.resolve_query_color(color)
+        if bucket is None:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"Unknown color: {color}")
+        rows = [
+            a for a in db.scalars(stmt).all()
+            if color_service.colors_match_bucket(a.dominant_colors, bucket)
+        ]
+        total = len(rows)
+        items = rows[offset : offset + limit]
+    else:
+        total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+        items = list(db.scalars(stmt.limit(limit).offset(offset)).all())
+
+    return AssetList(items=items, total=total, limit=limit, offset=offset)
 
 
 @router.get("/{asset_id}", response_model=AssetRead)

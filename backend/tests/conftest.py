@@ -7,6 +7,7 @@ visible within the test but never persisted to the real database.
 """
 
 from collections.abc import Generator
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import engine, get_db
 from app.main import app
+from app.services.storage import LocalStorage, get_storage
 
 
 @pytest.fixture
@@ -41,3 +43,13 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
         yield TestClient(app)
     finally:
         app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def storage_dir(tmp_path: Path) -> Generator[Path, None, None]:
+    """Point the upload route at an isolated temp storage directory."""
+    app.dependency_overrides[get_storage] = lambda: LocalStorage(tmp_path)
+    try:
+        yield tmp_path
+    finally:
+        app.dependency_overrides.pop(get_storage, None)

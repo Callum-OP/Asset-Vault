@@ -1,39 +1,14 @@
 """Tests for asset upload, storage, and metadata extraction (Phase 3)."""
 
-import io
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from PIL import Image
 
 from app.api.routes import assets as assets_route
-from app.main import app
-from app.services.storage import LocalStorage, get_storage
-
-
-@pytest.fixture
-def storage_dir(tmp_path: Path) -> Path:
-    """Point the upload route at an isolated temp storage directory."""
-    app.dependency_overrides[get_storage] = lambda: LocalStorage(tmp_path)
-    try:
-        yield tmp_path
-    finally:
-        app.dependency_overrides.pop(get_storage, None)
-
-
-def _auth_headers(client: TestClient, email: str = "uploader@example.com") -> dict[str, str]:
-    client.post("/auth/register", json={"email": email, "password": "s3curepass"})
-    token = client.post(
-        "/auth/login", data={"username": email, "password": "s3curepass"}
-    ).json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
-
-
-def _png_bytes(color: tuple[int, int, int] = (10, 120, 200), size=(64, 48)) -> bytes:
-    buf = io.BytesIO()
-    Image.new("RGB", size, color).save(buf, format="PNG")
-    return buf.getvalue()
+from tests.helpers import auth_headers as _auth_headers
+from tests.helpers import png_bytes as _png_bytes
+from tests.helpers import upload as _upload
 
 
 def test_upload_png_creates_asset_with_thumbnail_and_colors(
@@ -118,14 +93,6 @@ def test_upload_rejects_oversized_file(
         files={"file": ("hero.png", _png_bytes(), "image/png")},
     )
     assert resp.status_code == 413
-
-
-def _upload(client: TestClient, headers: dict[str, str], name: str = "hero.png") -> dict:
-    resp = client.post(
-        "/assets", headers=headers, files={"file": (name, _png_bytes(), "image/png")}
-    )
-    assert resp.status_code == 201, resp.text
-    return resp.json()
 
 
 def test_list_assets_is_paginated(client: TestClient, storage_dir: Path) -> None:
