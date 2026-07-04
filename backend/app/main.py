@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.api.routes import assets, auth, categories, health, tags
+from app.api.routes import assets, auth, categories, folders, health, tags
 from app.core.config import get_settings
 from app.services.storage import get_storage
 
@@ -28,6 +28,7 @@ app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(assets.router)
 app.include_router(categories.router)
+app.include_router(folders.router)
 app.include_router(tags.router)
 
 # Serve uploaded files & generated thumbnails. Stored filenames are random

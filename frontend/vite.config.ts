@@ -1,5 +1,7 @@
+import type { IncomingMessage } from 'node:http'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 // Backend target for the dev proxy. Override with VITE_API_TARGET if the
@@ -7,13 +9,25 @@ import react from '@vitejs/plugin-react'
 // Windows doesn't try IPv6 ::1 first while uvicorn binds IPv4.
 const API_TARGET = process.env.VITE_API_TARGET ?? 'http://127.0.0.1:8000'
 
+// Backend route prefixes proxied to the API during development.
+const API_ROUTES = ['/health', '/auth', '/assets', '/categories', '/folders', '/tags', '/storage']
+
+// The SPA route `/assets/:id` shares a prefix with the `/assets` API. Browser
+// navigations send `Accept: text/html`, so bypass the proxy for those and let
+// Vite serve index.html; XHR/fetch/image requests still hit the backend.
+function serveSpaForDocuments(req: IncomingMessage): string | undefined {
+  if (req.headers.accept?.includes('text/html')) return '/index.html'
+  return undefined
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
+  // Ensure a single copy of three so loaders (FBX/OBJ) and r3f share instances.
+  resolve: { dedupe: ['three'] },
   server: {
     port: 5173,
-    proxy: {
-      '/health': API_TARGET,
-      '/api': API_TARGET,
-    },
+    proxy: Object.fromEntries(
+      API_ROUTES.map((path) => [path, { target: API_TARGET, bypass: serveSpaForDocuments }]),
+    ),
   },
 })

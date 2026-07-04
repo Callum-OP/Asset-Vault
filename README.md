@@ -40,6 +40,17 @@ cd frontend
 npm install
 npm run dev                   # http://localhost:5173
 ```
+- The dev server proxies API routes to the backend. If the backend is **not** on
+  `:8000`, point the proxy at it: `VITE_API_TARGET=http://127.0.0.1:8001 npm run dev`
+  (PowerShell: `$env:VITE_API_TARGET="http://127.0.0.1:8001"; npm run dev`).
+- Optional `frontend/.env` keys: `VITE_API_TARGET`, `VITE_GOOGLE_CLIENT_ID`.
+
+### Frontend — test
+```bash
+cd frontend
+npm run build                 # type-check + production build
+npm test                      # Vitest component smoke tests
+```
 
 ## Environment notes (this machine)
 - **System TLS certificates:** package registries are behind a custom root CA.
@@ -73,14 +84,21 @@ You need a free **OAuth Client ID** from Google. It's public (safe to commit to
    - **Authorized JavaScript origins**: add `http://localhost:5173` (the frontend).
    - Create it and copy the **Client ID** (looks like
      `1234567890-abc123.apps.googleusercontent.com`).
-4. Paste it into `backend/.env`:
-   ```
-   GOOGLE_CLIENT_ID=1234567890-abc123.apps.googleusercontent.com
-   ```
-5. Restart the backend. `POST /auth/google` now verifies real Google tokens.
+4. Paste the **same** Client ID into **both** places:
+   - `backend/.env` (verifies the token server-side):
+     ```
+     GOOGLE_CLIENT_ID=1234567890-abc123.apps.googleusercontent.com
+     ```
+   - `frontend/.env` (renders the button):
+     ```
+     VITE_GOOGLE_CLIENT_ID=1234567890-abc123.apps.googleusercontent.com
+     ```
+5. Restart the backend and the frontend dev server. A "Sign in with Google"
+   button now appears on the login/register pages, and `POST /auth/google`
+   verifies real Google tokens.
 
-> The "Sign in with Google" button on the frontend lands with the auth UI
-> (Phase 7); the same `GOOGLE_CLIENT_ID` will be reused there.
+> Until `VITE_GOOGLE_CLIENT_ID` is set, the Google button is simply hidden and
+> email/password auth works as normal.
 
 ## Project layout
 ```

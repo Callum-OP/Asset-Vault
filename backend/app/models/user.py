@@ -13,6 +13,7 @@ from app.core.database import Base
 if TYPE_CHECKING:
     from app.models.asset import Asset
     from app.models.category import Category
+    from app.models.folder import Folder
     from app.models.tag import Tag
 
 
@@ -43,6 +44,9 @@ class User(Base):
         back_populates="owner", cascade="all, delete-orphan"
     )
     categories: Mapped[list["Category"]] = relationship(
+        back_populates="owner", cascade="all, delete-orphan"
+    )
+    folders: Mapped[list["Folder"]] = relationship(
         back_populates="owner", cascade="all, delete-orphan"
     )
     tags: Mapped[list["Tag"]] = relationship(

@@ -14,7 +14,7 @@ from sqlalchemy.sql import Select
 from app.api.deps import CurrentUser
 from app.core.config import get_settings
 from app.core.database import get_db
-from app.models import Asset, AssetType, Category, Tag, User
+from app.models import Asset, AssetType, Category, Folder, Tag, User
 from app.schemas.asset import (
     AssetBatchUpdate,
     AssetList,
@@ -41,7 +41,34 @@ router = APIRouter(prefix="/assets", tags=["assets"])
 settings = get_settings()
 
 
-_EAGER = (selectinload(Asset.tags), joinedload(Asset.category))
+_EAGER = (selectinload(Asset.tags), joinedload(Asset.category), joinedload(Asset.folder))
+
+
+def _validate_owned_folder(folder_id: int | None, db: Session, user: User) -> None:
+    """400 if ``folder_id`` is set but not an owned folder. None is allowed."""
+    if folder_id is None:
+        return
+    folder = db.get(Folder, folder_id)
+    if folder is None or folder.owner_id != user.id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid folder")
+
+
+def _folder_and_descendant_ids(root_id: int, db: Session, user: User) -> list[int]:
+    """Return ``root_id`` plus every descendant folder id owned by the user."""
+    rows = db.execute(
+        select(Folder.id, Folder.parent_id).where(Folder.owner_id == user.id)
+    ).all()
+    children: dict[int | None, list[int]] = {}
+    for fid, pid in rows:
+        children.setdefault(pid, []).append(fid)
+
+    result: list[int] = []
+    stack = [root_id]
+    while stack:
+        current = stack.pop()
+        result.append(current)
+        stack.extend(children.get(current, []))
+    return result
 
 
 def _get_owned_asset(asset_id: int, db: Session, user: User) -> Asset:
@@ -147,6 +174,11 @@ def list_assets(
     category: Annotated[str | None, Query(description="Category name")] = None,
     tag: Annotated[list[str] | None, Query(description="Tag name(s); asset must have all")] = None,
     color: Annotated[str | None, Query(description="Color bucket name or hex")] = None,
+    folder_id: Annotated[int | None, Query(description="Filter to a folder")] = None,
+    include_subfolders: Annotated[
+        bool, Query(description="With folder_id, also include nested folders")
+    ] = False,
+    unfiled: Annotated[bool, Query(description="Only assets with no folder")] = False,
     sort: SortField = "created_at",
     order: SortOrder = "desc",
 ) -> AssetList:
@@ -162,6 +194,14 @@ def list_assets(
         stmt = stmt.where(Asset.asset_type == type)
     if min_rating is not None:
         stmt = stmt.where(Asset.rating >= min_rating)
+    if unfiled:
+        stmt = stmt.where(Asset.folder_id.is_(None))
+    elif folder_id is not None:
+        if include_subfolders:
+            ids = _folder_and_descendant_ids(folder_id, db, current_user)
+            stmt = stmt.where(Asset.folder_id.in_(ids))
+        else:
+            stmt = stmt.where(Asset.folder_id == folder_id)
     if category:
         stmt = stmt.where(
             Asset.category.has(
@@ -229,6 +269,8 @@ def batch_update_assets(
         category = db.get(Category, payload.category_id)
         if category is None or category.owner_id != current_user.id:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid category")
+    if "folder_id" in fields:
+        _validate_owned_folder(payload.folder_id, db, current_user)
 
     for asset in assets:
         existing = {t.id for t in asset.tags}
@@ -239,6 +281,8 @@ def batch_update_assets(
             asset.tags = [t for t in asset.tags if t.id not in remove_ids]
         if "category_id" in fields:
             asset.category_id = payload.category_id
+        if "folder_id" in fields:
+            asset.folder_id = payload.folder_id
         if "rating" in fields:
             asset.rating = payload.rating
 
@@ -279,6 +323,33 @@ def remove_asset_tag(
     return asset
 
 
+@router.put("/{asset_id}/thumbnail", response_model=AssetRead)
+async def set_asset_thumbnail(
+    asset_id: int,
+    file: UploadFile,
+    current_user: CurrentUser,
+    db: Annotated[Session, Depends(get_db)],
+    storage: Annotated[LocalStorage, Depends(get_storage)],
+) -> Asset:
+    """Set an asset's thumbnail from an uploaded image.
+
+    Used by the client to persist a snapshot of the 3D viewer so models get a
+    real preview in the gallery.
+    """
+    asset = _get_owned_asset(asset_id, db, current_user)
+    data = await file.read()
+    if not data:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Empty image")
+    try:
+        thumbnail = media.make_thumbnail(data)
+    except OSError:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid image")
+    asset.thumbnail_path = storage.save_thumbnail(thumbnail, asset.stored_filename)
+    db.commit()
+    db.refresh(asset)
+    return asset
+
+
 @router.get("/{asset_id}", response_model=AssetRead)
 def get_asset(
     asset_id: int, current_user: CurrentUser, db: Annotated[Session, Depends(get_db)]
@@ -303,6 +374,8 @@ def update_asset(
         category = db.get(Category, new_category_id)
         if category is None or category.owner_id != current_user.id:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid category")
+    if "folder_id" in changes:
+        _validate_owned_folder(changes["folder_id"], db, current_user)
 
     for field, value in changes.items():
         setattr(asset, field, value)

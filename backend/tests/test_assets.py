@@ -182,3 +182,35 @@ def test_delete_enforces_ownership(client: TestClient, storage_dir: Path) -> Non
     bob = _auth_headers(client, "bob")
     asset = _upload(client, alice)
     assert client.delete(f"/assets/{asset['id']}", headers=bob).status_code == 404
+
+
+def test_set_thumbnail_for_model(client: TestClient, storage_dir: Path) -> None:
+    headers = _auth_headers(client)
+    glb = client.post(
+        "/assets",
+        headers=headers,
+        files={"file": ("m.glb", b"glTF\x02\x00\x00\x00binary", "model/gltf-binary")},
+    ).json()
+    assert glb["thumbnail_path"] is None
+
+    resp = client.put(
+        f"/assets/{glb['id']}/thumbnail",
+        headers=headers,
+        files={"file": ("snap.png", _png_bytes(), "image/png")},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["thumbnail_path"] is not None
+    assert (storage_dir / body["thumbnail_path"]).exists()
+
+
+def test_set_thumbnail_enforces_ownership(client: TestClient, storage_dir: Path) -> None:
+    alice = _auth_headers(client, "alice")
+    bob = _auth_headers(client, "bob")
+    asset = _upload(client, alice)
+    resp = client.put(
+        f"/assets/{asset['id']}/thumbnail",
+        headers=bob,
+        files={"file": ("snap.png", _png_bytes(), "image/png")},
+    )
+    assert resp.status_code == 404

@@ -1,53 +1,28 @@
-import { useEffect, useState } from 'react'
-import './App.css'
+import { Navigate, Route, Routes } from 'react-router-dom'
 
-type Health = {
-  status: string
-  service: string
-  database: string
-}
+import { Layout } from './components/Layout'
+import { ProtectedRoute } from './components/ProtectedRoute'
+import { AssetDetailsPage } from './pages/AssetDetailsPage'
+import { GalleryPage } from './pages/GalleryPage'
+import { LoginPage } from './pages/LoginPage'
+import { RegisterPage } from './pages/RegisterPage'
 
-function App() {
-  const [health, setHealth] = useState<Health | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetch('/health')
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        return res.json()
-      })
-      .then((data: Health) => setHealth(data))
-      .catch((err) => setError(String(err)))
-  }, [])
-
-  const ok = health?.status === 'ok' && health?.database === 'ok'
-
+export default function App() {
   return (
-    <main className="app">
-      <h1>LocalAsset Vault</h1>
-      <p className="subtitle">Digital Asset Manager — scaffold</p>
-
-      <section className="status-card">
-        <h2>Backend connection</h2>
-        {error && <p className="status bad">⚠ Cannot reach backend: {error}</p>}
-        {!error && !health && <p className="status">Checking…</p>}
-        {health && (
-          <ul className="status-list">
-            <li>
-              <span className={`dot ${ok ? 'green' : 'amber'}`} /> API status:{' '}
-              <strong>{health.status}</strong>
-            </li>
-            <li>
-              <span className={`dot ${health.database === 'ok' ? 'green' : 'red'}`} /> Database:{' '}
-              <strong>{health.database}</strong>
-            </li>
-            <li>Service: {health.service}</li>
-          </ul>
-        )}
-      </section>
-    </main>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route
+        element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }
+      >
+        <Route path="/" element={<GalleryPage />} />
+        <Route path="/assets/:id" element={<AssetDetailsPage />} />
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   )
 }
-
-export default App

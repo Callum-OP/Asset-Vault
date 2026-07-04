@@ -15,6 +15,7 @@ from app.models.associations import asset_tags
 
 if TYPE_CHECKING:
     from app.models.category import Category
+    from app.models.folder import Folder
     from app.models.tag import Tag
     from app.models.user import User
 
@@ -39,6 +40,11 @@ class Asset(Base):
     )
     category_id: Mapped[int | None] = mapped_column(
         ForeignKey("categories.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    # An asset's home folder. Null means "unfiled" (shown at the tree root).
+    # Deleting the folder clears this (SET NULL) rather than deleting the asset.
+    folder_id: Mapped[int | None] = mapped_column(
+        ForeignKey("folders.id", ondelete="SET NULL"), nullable=True, index=True
     )
 
     # File identity & storage
@@ -71,4 +77,5 @@ class Asset(Base):
 
     owner: Mapped["User"] = relationship(back_populates="assets")
     category: Mapped["Category | None"] = relationship(back_populates="assets")
+    folder: Mapped["Folder | None"] = relationship(back_populates="assets")
     tags: Mapped[list["Tag"]] = relationship(secondary=asset_tags, back_populates="assets")

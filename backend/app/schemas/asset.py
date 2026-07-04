@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.models import AssetType
 from app.schemas.category import CategoryRead
+from app.schemas.folder import FolderRead
 from app.schemas.tag import TagRead
 
 
@@ -28,6 +29,8 @@ class AssetRead(BaseModel):
     rating: int | None
     category_id: int | None
     category: CategoryRead | None = None
+    folder_id: int | None
+    folder: FolderRead | None = None
     tags: list[TagRead] = []
     created_at: datetime
     updated_at: datetime
@@ -40,6 +43,7 @@ class AssetUpdate(BaseModel):
     source_url: str | None = None
     rating: int | None = Field(default=None, ge=0, le=5)
     category_id: int | None = None
+    folder_id: int | None = None
 
 
 class AssetList(BaseModel):
@@ -58,6 +62,7 @@ class AssetBatchUpdate(BaseModel):
     add_tag_ids: list[int] = []
     remove_tag_ids: list[int] = []
     category_id: int | None = None
+    folder_id: int | None = None
     rating: int | None = Field(default=None, ge=0, le=5)
 
 

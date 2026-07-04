@@ -8,6 +8,7 @@ from app.core.database import Base
 from app.models.associations import asset_tags
 from app.models.asset import Asset, AssetType
 from app.models.category import Category
+from app.models.folder import Folder
 from app.models.tag import Tag
 from app.models.user import User
 
@@ -15,6 +16,7 @@ __all__ = [
     "Base",
     "User",
     "Category",
+    "Folder",
     "Tag",
     "Asset",
     "AssetType",
