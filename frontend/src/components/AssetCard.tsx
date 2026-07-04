@@ -31,6 +31,15 @@ export function AssetCard({ asset }: { asset: Asset }) {
             {TYPE_LABELS[asset.asset_type]}
           </span>
         )}
+        {asset.asset_type === 'video' && (
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-black/55 text-white shadow-sm">
+              <svg viewBox="0 0 24 24" className="ml-0.5 h-5 w-5" fill="currentColor" aria-hidden>
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </span>
+          </span>
+        )}
         <span className="absolute left-2 top-2 rounded bg-black/60 px-1.5 py-0.5 text-[11px] font-medium text-white">
           {TYPE_LABELS[asset.asset_type]}
         </span>

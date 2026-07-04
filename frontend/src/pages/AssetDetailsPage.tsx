@@ -137,7 +137,11 @@ export function AssetDetailsPage() {
         <AssetPreview
           asset={asset}
           onCapture={
-            asset.asset_type === 'model_3d' && !asset.thumbnail_path && !saveThumbnail.isPending
+            // 3D models auto-capture once when they still need a thumbnail;
+            // videos can always (re)set a frame as the thumbnail.
+            ((asset.asset_type === 'model_3d' && !asset.thumbnail_path) ||
+              asset.asset_type === 'video') &&
+            !saveThumbnail.isPending
               ? (image) => saveThumbnail.mutate(image)
               : undefined
           }

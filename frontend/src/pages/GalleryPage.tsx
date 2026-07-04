@@ -5,18 +5,29 @@ import { listAssets, updateAsset, uploadAsset } from '../api/assets'
 import type { AssetQuery } from '../api/assets'
 import { createFolder, deleteFolder, listFolders, updateFolder } from '../api/folders'
 import { buildFolderTree, folderPath } from '../api/folderTree'
+import { listCategories, listTags } from '../api/taxonomy'
 import type { FolderWithCount } from '../api/types'
 import { AssetCard } from '../components/AssetCard'
+import { FilterBar, EMPTY_FILTERS, activeFilterCount } from '../components/FilterBar'
+import type { Filters } from '../components/FilterBar'
 import { FolderSidebar } from '../components/FolderSidebar'
 import type { FolderSelection } from '../components/FolderSidebar'
 import { UploadDropzone } from '../components/UploadDropzone'
+import { useDebouncedValue } from '../hooks/useDebouncedValue'
 
 export function GalleryPage() {
   const queryClient = useQueryClient()
   const [selection, setSelection] = useState<FolderSelection>('all')
   const [includeSubfolders, setIncludeSubfolders] = useState(true)
+  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
+
+  const patchFilters = (patch: Partial<Filters>) => setFilters((prev) => ({ ...prev, ...patch }))
+  const clearFilters = () =>
+    setFilters((prev) => ({ ...EMPTY_FILTERS, sort: prev.sort, order: prev.order }))
 
   const { data: folders } = useQuery({ queryKey: ['folders'], queryFn: listFolders })
+  const { data: categories } = useQuery({ queryKey: ['categories'], queryFn: listCategories })
+  const { data: tags } = useQuery({ queryKey: ['tags'], queryFn: listTags })
   const tree = useMemo(() => buildFolderTree(folders ?? []), [folders])
 
   // If the viewed folder disappears (deleted, possibly via an ancestor
@@ -27,15 +38,23 @@ export function GalleryPage() {
     }
   }, [folders, selection])
 
-  const assetParams: AssetQuery = { limit: 100 }
+  const debouncedQ = useDebouncedValue(filters.q.trim(), 300)
+
+  const assetParams: AssetQuery = { limit: 100, sort: filters.sort, order: filters.order }
   if (selection === 'unfiled') assetParams.unfiled = true
   else if (typeof selection === 'number') {
     assetParams.folder_id = selection
     assetParams.include_subfolders = includeSubfolders
   }
+  if (debouncedQ) assetParams.q = debouncedQ
+  if (filters.type) assetParams.type = filters.type
+  if (filters.category) assetParams.category = filters.category
+  if (filters.tags.length) assetParams.tag = filters.tags
+  if (filters.color) assetParams.color = filters.color
+  if (filters.minRating > 0) assetParams.min_rating = filters.minRating
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['assets', selection, includeSubfolders],
+    queryKey: ['assets', selection, includeSubfolders, { ...filters, q: debouncedQ }],
     queryFn: () => listAssets(assetParams),
   })
 
@@ -86,6 +105,7 @@ export function GalleryPage() {
 
   const assets = data?.items ?? []
   const crumbs = typeof selection === 'number' ? folderPath(folders ?? [], selection) : []
+  const filtersActive = activeFilterCount(filters) > 0
 
   const heading =
     selection === 'all' ? 'All assets' : selection === 'unfiled' ? 'Unfiled' : crumbs.at(-1)?.name
@@ -140,14 +160,31 @@ export function GalleryPage() {
           </p>
         )}
 
+        <FilterBar
+          filters={filters}
+          onChange={patchFilters}
+          onClear={clearFilters}
+          categories={categories ?? []}
+          tags={tags ?? []}
+        />
+
         {isLoading && <p className="text-sm text-gray-500">Loading assets…</p>}
         {isError && <p className="text-sm text-red-600">Could not load your assets.</p>}
 
         {!isLoading && !isError && assets.length === 0 && (
           <div className="rounded-xl border border-dashed border-gray-300 bg-white py-16 text-center text-gray-400">
-            {selection === 'all'
-              ? 'No assets yet — drop a file above to get started.'
-              : 'This folder is empty — drop files above to add them here.'}
+            {filtersActive ? (
+              <>
+                No assets match your filters.{' '}
+                <button onClick={clearFilters} className="text-violet-600 hover:underline">
+                  Clear filters
+                </button>
+              </>
+            ) : selection === 'all' ? (
+              'No assets yet — drop a file above to get started.'
+            ) : (
+              'This folder is empty — drop files above to add them here.'
+            )}
           </div>
         )}
 

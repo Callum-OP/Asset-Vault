@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useCallback, useRef } from 'react'
 
 import type { Asset } from '../api/types'
 
@@ -34,13 +34,7 @@ export function AssetPreview({ asset, onCapture }: Props) {
   }
 
   if (asset.asset_type === 'video') {
-    return (
-      <video
-        src={fileUrl}
-        controls
-        className="max-h-[480px] w-full rounded-xl border border-gray-200 bg-black"
-      />
-    )
+    return <VideoPreview asset={asset} onCapture={onCapture} />
   }
 
   if (asset.asset_type === 'image' || asset.asset_type === 'gif' || asset.asset_type === 'texture') {
@@ -60,6 +54,79 @@ export function AssetPreview({ asset, onCapture }: Props) {
       <a href={fileUrl} download className="text-sm font-medium text-violet-600 hover:underline">
         Download original
       </a>
+    </div>
+  )
+}
+
+/**
+ * Video player that can grab a still frame for the gallery thumbnail — the
+ * browser already decodes the video, so no server-side ffmpeg is needed. When
+ * `onCapture` is set and the video has no thumbnail yet, one frame is captured
+ * automatically the first time it's opened; the button lets you scrub to a
+ * nicer frame and set it manually.
+ */
+function VideoPreview({
+  asset,
+  onCapture,
+}: {
+  asset: Asset
+  onCapture?: (image: Blob) => void
+}) {
+  const fileUrl = `/storage/${asset.file_path}`
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const autoCaptured = useRef(false)
+
+  const capture = useCallback(() => {
+    const video = videoRef.current
+    if (!video || !video.videoWidth || !onCapture) return
+    const canvas = document.createElement('canvas')
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+    canvas.toBlob((blob) => blob && onCapture(blob), 'image/png')
+  }, [onCapture])
+
+  // Auto-grab a representative frame (~1s in) the first time an
+  // un-thumbnailed video is opened.
+  function handleLoadedData() {
+    const video = videoRef.current
+    if (!video || autoCaptured.current || !onCapture || asset.thumbnail_path) return
+    autoCaptured.current = true
+    const target = Math.min(1, (video.duration || 2) / 2)
+    const onSeeked = () => {
+      video.removeEventListener('seeked', onSeeked)
+      capture()
+    }
+    video.addEventListener('seeked', onSeeked)
+    try {
+      video.currentTime = target
+    } catch {
+      video.removeEventListener('seeked', onSeeked)
+      capture()
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <video
+        ref={videoRef}
+        src={fileUrl}
+        controls
+        preload="auto"
+        onLoadedData={handleLoadedData}
+        className="max-h-[480px] w-full rounded-xl border border-gray-200 bg-black"
+      />
+      {onCapture && (
+        <button
+          type="button"
+          onClick={capture}
+          className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-100"
+        >
+          Set current frame as thumbnail
+        </button>
+      )}
     </div>
   )
 }
