@@ -17,6 +17,9 @@ export function GoogleButton({ onError }: { onError: (message: string) => void }
         loginWithGoogle(idToken).catch(() => onError('Google sign-in failed'))
       }}
       onError={() => onError('Google sign-in failed')}
+      theme="filled_black"
+      shape="pill"
+      text="continue_with"
     />
   )
 }

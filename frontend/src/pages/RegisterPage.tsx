@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom'
 
 import { useAuth } from '../auth/AuthContext'
 import { GoogleButton } from '../components/GoogleButton'
+import { Wordmark } from '../components/Wordmark'
 import { GOOGLE_CLIENT_ID } from '../config'
 
 export function RegisterPage() {
@@ -36,21 +37,29 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
-        <h1 className="mb-1 text-2xl font-semibold tracking-tight">
-          Create your <span className="text-violet-600">Vault</span>
-        </h1>
-        <p className="mb-6 text-sm text-gray-500">Start cataloging your assets.</p>
+    <div className="relative flex min-h-screen items-center justify-center px-4">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(40rem 30rem at 50% -20%, rgba(244,185,66,0.12), transparent 60%)',
+        }}
+      />
+      <div className="surface relative w-full max-w-sm p-8 shadow-[var(--shadow-panel)]">
+        <div className="mb-6">
+          <Wordmark size="lg" />
+          <p className="mt-3 text-sm text-muted">Create an account and start cataloging.</p>
+        </div>
 
-        <form onSubmit={onSubmit} className="space-y-4">
+        <form onSubmit={onSubmit} className="space-y-3">
           <input
             type="email"
             required
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none"
+            className="input"
           />
           <input
             type="password"
@@ -59,22 +68,18 @@ export function RegisterPage() {
             placeholder="Password (min 8 characters)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none"
+            className="input"
           />
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <button
-            type="submit"
-            disabled={busy}
-            className="w-full rounded-lg bg-violet-600 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-60"
-          >
+          {error && <p className="text-sm text-red-400">{error}</p>}
+          <button type="submit" disabled={busy} className="btn btn-accent w-full">
             {busy ? 'Creating…' : 'Create account'}
           </button>
         </form>
 
         {GOOGLE_CLIENT_ID && (
           <div className="mt-4">
-            <div className="my-3 flex items-center gap-3 text-xs text-gray-400">
-              <span className="h-px flex-1 bg-gray-200" /> or <span className="h-px flex-1 bg-gray-200" />
+            <div className="my-3 flex items-center gap-3 text-xs text-subtle">
+              <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
             </div>
             <div className="flex justify-center">
               <GoogleButton onError={setError} />
@@ -82,9 +87,9 @@ export function RegisterPage() {
           </div>
         )}
 
-        <p className="mt-6 text-center text-sm text-gray-500">
+        <p className="mt-6 text-center text-sm text-muted">
           Already have an account?{' '}
-          <Link to="/login" className="font-medium text-violet-600 hover:underline">
+          <Link to="/login" className="font-medium text-accent hover:text-accent-hover">
             Sign in
           </Link>
         </p>

@@ -124,29 +124,30 @@ export function GalleryPage() {
       <div className="min-w-0 flex-1 space-y-6">
         <div className="flex items-end justify-between">
           <div>
-            <div className="flex items-center gap-1 text-sm text-gray-500">
-              <button className="hover:text-gray-800" onClick={() => setSelection('all')}>
+            <div className="flex items-center gap-1 text-sm text-muted">
+              <button className="transition hover:text-fg" onClick={() => setSelection('all')}>
                 All
               </button>
               {crumbs.map((c) => (
                 <span key={c.id} className="flex items-center gap-1">
-                  <span className="text-gray-300">/</span>
-                  <button className="hover:text-gray-800" onClick={() => setSelection(c.id)}>
+                  <span className="text-subtle">/</span>
+                  <button className="transition hover:text-fg" onClick={() => setSelection(c.id)}>
                     {c.name}
                   </button>
                 </span>
               ))}
             </div>
-            <h1 className="text-2xl font-semibold tracking-tight">{heading}</h1>
-            <p className="text-sm text-gray-500">{data ? `${data.total} item(s)` : ' '}</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-fg">{heading}</h1>
+            <p className="text-sm text-muted">{data ? `${data.total} item(s)` : ' '}</p>
           </div>
 
           {typeof selection === 'number' && (
-            <label className="flex items-center gap-2 text-sm text-gray-600">
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-muted">
               <input
                 type="checkbox"
                 checked={includeSubfolders}
                 onChange={(e) => setIncludeSubfolders(e.target.checked)}
+                className="accent-[var(--color-accent)]"
               />
               Include subfolders
             </label>
@@ -155,7 +156,7 @@ export function GalleryPage() {
 
         <UploadDropzone onFiles={handleFiles} busy={upload.isPending} />
         {upload.isError && (
-          <p className="text-sm text-red-600">
+          <p className="text-sm text-red-400">
             Some files could not be uploaded (unsupported type or too large).
           </p>
         )}
@@ -168,15 +169,15 @@ export function GalleryPage() {
           tags={tags ?? []}
         />
 
-        {isLoading && <p className="text-sm text-gray-500">Loading assets…</p>}
-        {isError && <p className="text-sm text-red-600">Could not load your assets.</p>}
+        {isLoading && <p className="text-sm text-muted">Loading assets…</p>}
+        {isError && <p className="text-sm text-red-400">Could not load your assets.</p>}
 
         {!isLoading && !isError && assets.length === 0 && (
-          <div className="rounded-xl border border-dashed border-gray-300 bg-white py-16 text-center text-gray-400">
+          <div className="rounded-xl border border-dashed border-border bg-surface/40 py-16 text-center text-muted">
             {filtersActive ? (
               <>
                 No assets match your filters.{' '}
-                <button onClick={clearFilters} className="text-violet-600 hover:underline">
+                <button onClick={clearFilters} className="text-accent hover:text-accent-hover">
                   Clear filters
                 </button>
               </>

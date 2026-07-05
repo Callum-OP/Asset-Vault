@@ -106,8 +106,8 @@ export function AssetDetailsPage() {
     onSuccess: invalidateAsset,
   })
 
-  if (isLoading) return <p className="text-sm text-gray-500">Loading…</p>
-  if (isError || !asset) return <p className="text-sm text-red-600">Asset not found.</p>
+  if (isLoading) return <p className="text-sm text-muted">Loading…</p>
+  if (isError || !asset) return <p className="text-sm text-red-400">Asset not found.</p>
 
   async function handleAddTag(event: FormEvent) {
     event.preventDefault()
@@ -129,7 +129,7 @@ export function AssetDetailsPage() {
 
   return (
     <div className="space-y-6">
-      <Link to="/" className="text-sm text-violet-600 hover:underline">
+      <Link to="/" className="text-sm text-muted transition hover:text-fg">
         ← Back to gallery
       </Link>
 
@@ -149,33 +149,33 @@ export function AssetDetailsPage() {
 
         <div className="space-y-6">
           <div>
-            <h1 className="break-words text-xl font-semibold">{asset.original_filename}</h1>
-            <dl className="mt-3 grid grid-cols-2 gap-y-1 text-sm text-gray-600">
-              <dt className="text-gray-400">Type</dt>
+            <h1 className="break-words text-xl font-semibold text-fg">{asset.original_filename}</h1>
+            <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm text-fg">
+              <dt className="text-subtle">Type</dt>
               <dd>{asset.asset_type}</dd>
-              <dt className="text-gray-400">Size</dt>
+              <dt className="text-subtle">Size</dt>
               <dd>{humanSize(asset.file_size)}</dd>
               {asset.width && asset.height && (
                 <>
-                  <dt className="text-gray-400">Dimensions</dt>
+                  <dt className="text-subtle">Dimensions</dt>
                   <dd>
                     {asset.width} × {asset.height}
                   </dd>
                 </>
               )}
-              <dt className="text-gray-400">Uploaded</dt>
+              <dt className="text-subtle">Uploaded</dt>
               <dd>{new Date(asset.created_at).toLocaleDateString()}</dd>
             </dl>
           </div>
 
           {asset.dominant_colors && asset.dominant_colors.length > 0 && (
             <div>
-              <p className="mb-1 text-sm font-medium text-gray-700">Colors</p>
+              <p className="mb-1.5 text-sm font-medium text-muted">Colors</p>
               <div className="flex gap-2">
                 {asset.dominant_colors.map((color, i) => (
                   <span
                     key={`${color}-${i}`}
-                    className="h-8 w-8 rounded-md border border-black/10"
+                    className="h-8 w-8 rounded-md ring-1 ring-white/10"
                     style={{ backgroundColor: color }}
                     title={color}
                   />
@@ -185,18 +185,18 @@ export function AssetDetailsPage() {
           )}
 
           <div>
-            <p className="mb-1 text-sm font-medium text-gray-700">Rating</p>
+            <p className="mb-1.5 text-sm font-medium text-muted">Rating</p>
             <RatingStars value={asset.rating} onChange={(v) => patch.mutate({ rating: v })} />
           </div>
 
           <div>
-            <p className="mb-1 text-sm font-medium text-gray-700">Folder</p>
+            <p className="mb-1.5 text-sm font-medium text-muted">Folder</p>
             <select
               value={asset.folder_id ?? ''}
               onChange={(e) =>
                 patch.mutate({ folder_id: e.target.value ? Number(e.target.value) : null })
               }
-              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
+              className="select"
             >
               <option value="">— Unfiled —</option>
               {folderOptions.map((f) => (
@@ -208,14 +208,14 @@ export function AssetDetailsPage() {
           </div>
 
           <div>
-            <p className="mb-1 text-sm font-medium text-gray-700">Category</p>
+            <p className="mb-1.5 text-sm font-medium text-muted">Category</p>
             <div className="flex flex-wrap items-center gap-2">
               <select
                 value={asset.category_id ?? ''}
                 onChange={(e) =>
                   patch.mutate({ category_id: e.target.value ? Number(e.target.value) : null })
                 }
-                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
+                className="select"
               >
                 <option value="">— None —</option>
                 {(categories ?? []).map((c) => (
@@ -228,36 +228,33 @@ export function AssetDetailsPage() {
                 value={newCategory}
                 onChange={(e) => setNewCategory(e.target.value)}
                 placeholder="New category"
-                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
+                className="input w-auto py-1.5"
               />
-              <button
-                onClick={handleCreateCategory}
-                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-100"
-              >
+              <button onClick={handleCreateCategory} className="btn btn-ghost px-3 py-1.5">
                 Add
               </button>
             </div>
           </div>
 
           <div>
-            <p className="mb-1 text-sm font-medium text-gray-700">Tags</p>
-            <div className="mb-2 flex flex-wrap gap-1">
+            <p className="mb-1.5 text-sm font-medium text-muted">Tags</p>
+            <div className="mb-2 flex flex-wrap gap-1.5">
               {asset.tags.map((tag) => (
                 <span
                   key={tag.id}
-                  className="flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-xs text-violet-700"
+                  className="flex items-center gap-1 rounded-full bg-accent/10 px-2.5 py-0.5 text-xs text-accent"
                 >
                   {tag.name}
                   <button
                     onClick={() => detach.mutate(tag.id)}
                     aria-label={`Remove ${tag.name}`}
-                    className="text-violet-500 hover:text-violet-900"
+                    className="text-accent/60 transition hover:text-accent"
                   >
                     ×
                   </button>
                 </span>
               ))}
-              {asset.tags.length === 0 && <span className="text-sm text-gray-400">No tags yet</span>}
+              {asset.tags.length === 0 && <span className="text-sm text-subtle">No tags yet</span>}
             </div>
             <form onSubmit={handleAddTag} className="flex gap-2">
               <input
@@ -265,64 +262,61 @@ export function AssetDetailsPage() {
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
                 placeholder="Add a tag…"
-                className="flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
+                className="input flex-1 py-1.5"
               />
               <datalist id="tag-options">
                 {(tags ?? []).map((t) => (
                   <option key={t.id} value={t.name} />
                 ))}
               </datalist>
-              <button
-                type="submit"
-                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-100"
-              >
+              <button type="submit" className="btn btn-ghost px-3 py-1.5">
                 Add
               </button>
             </form>
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Description</label>
+            <label className="mb-1.5 block text-sm font-medium text-muted">Description</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              className="input"
             />
             <button
               onClick={() => patch.mutate({ description: description || null })}
               disabled={description === (asset.description ?? '')}
-              className="mt-1 rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+              className="btn btn-accent mt-2 px-3 py-1.5"
             >
               Save description
             </button>
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Source URL</label>
+            <label className="mb-1.5 block text-sm font-medium text-muted">Source URL</label>
             <div className="flex gap-2">
               <input
                 value={sourceUrl}
                 onChange={(e) => setSourceUrl(e.target.value)}
                 placeholder="https://…"
-                className="flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
+                className="input flex-1 py-1.5"
               />
               <button
                 onClick={() => patch.mutate({ source_url: sourceUrl || null })}
                 disabled={sourceUrl === (asset.source_url ?? '')}
-                className="rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+                className="btn btn-accent px-3 py-1.5"
               >
                 Save
               </button>
             </div>
           </div>
 
-          <div className="border-t border-gray-200 pt-4">
+          <div className="border-t border-border pt-4">
             <button
               onClick={() => {
                 if (window.confirm('Delete this asset permanently?')) remove.mutate()
               }}
-              className="rounded-lg border border-red-300 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
+              className="btn btn-danger px-3 py-1.5"
             >
               Delete asset
             </button>

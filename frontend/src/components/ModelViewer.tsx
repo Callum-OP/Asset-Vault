@@ -104,7 +104,7 @@ export function ModelViewer({ url, onCapture }: Props) {
   return (
     <ErrorBoundary
       fallback={
-        <div className="flex h-full items-center justify-center text-sm text-gray-400">
+        <div className="flex h-full items-center justify-center text-sm text-subtle">
           Could not load this 3D model.
         </div>
       }

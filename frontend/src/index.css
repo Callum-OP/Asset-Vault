@@ -1,13 +1,119 @@
 @import 'tailwindcss';
 
-html,
-body,
-#root {
-  height: 100%;
+/* ── Design tokens ─────────────────────────────────────────────────────
+   Dark Studio theme: a near-black charcoal canvas with layered glassy
+   surfaces and a warm amber/gold accent. Tailwind v4 turns each --color-*
+   token into utilities (bg-canvas, text-muted, border-border, bg-accent…).
+*/
+@theme {
+  --color-canvas: #0a0b0d;
+  --color-surface: #131519;
+  --color-surface-2: #1a1d23;
+  --color-surface-3: #23272e;
+  --color-border: #262a31;
+  --color-border-strong: #363b44;
+
+  --color-fg: #f3f4f6;
+  --color-muted: #9aa1ac;
+  --color-subtle: #6b727c;
+
+  --color-accent: #f4b942;
+  --color-accent-hover: #ffcb5e;
+  --color-accent-contrast: #1b1305;
+
+  --radius-lg: 0.625rem;
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1.125rem;
+
+  --font-sans: 'Inter var', 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+
+  /* Elevation + accent glow, tuned for a dark canvas. */
+  --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+  --shadow-glow: 0 0 0 1px rgba(244, 185, 66, 0.25), 0 10px 34px -14px rgba(244, 185, 66, 0.35);
 }
 
-body {
-  margin: 0;
-  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
-  color-scheme: light dark;
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-canvas);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    color-scheme: dark;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: rgba(244, 185, 66, 0.28);
+    color: var(--color-fg);
+  }
+
+  /* Keyboard focus rings in the accent, everywhere. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  /* Slim dark scrollbars so panels feel native to the theme. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border-strong) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--color-border-strong);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+}
+
+/* ── Reusable component classes ────────────────────────────────────────
+   Shared primitives so every button / input / surface stays consistent.
+*/
+@layer components {
+  .surface {
+    @apply rounded-xl border border-border bg-surface;
+  }
+
+  .input {
+    @apply w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-fg;
+    @apply placeholder:text-subtle transition;
+    @apply focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25;
+  }
+
+  /* Native <select>; OS dropdown list renders dark via color-scheme: dark. */
+  .select {
+    @apply cursor-pointer rounded-lg border border-border bg-surface-2 px-2 py-1.5 text-sm text-fg transition;
+    @apply focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25;
+  }
+
+  /* Base button; combine with a variant in markup, e.g. class="btn btn-accent". */
+  .btn {
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg px-3 py-2;
+    @apply text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-accent {
+    @apply bg-accent text-accent-contrast hover:bg-accent-hover;
+    @apply shadow-[0_6px_20px_-8px_rgba(244,185,66,0.6)];
+  }
+  .btn-ghost {
+    @apply border border-border bg-surface-2 text-fg hover:border-border-strong hover:bg-surface-3;
+  }
+  .btn-danger {
+    @apply border border-red-500/40 text-red-400 hover:bg-red-500/10;
+  }
+
+  .chip {
+    @apply cursor-pointer rounded-full px-3 py-1 text-sm transition;
+  }
 }

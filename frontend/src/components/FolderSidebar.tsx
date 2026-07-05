@@ -16,7 +16,9 @@ interface FolderSidebarProps {
 }
 
 const ROW_BASE =
-  'group flex items-center gap-1 rounded-md px-2 py-1 text-sm cursor-pointer select-none'
+  'group flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm cursor-pointer select-none transition'
+const ROW_ACTIVE = 'bg-accent/15 text-accent'
+const ROW_IDLE = 'text-muted hover:bg-surface-2 hover:text-fg'
 
 export function FolderSidebar({
   tree,
@@ -49,11 +51,11 @@ export function FolderSidebar({
   return (
     <nav className="w-56 shrink-0 space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Folders</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-subtle">Folders</h2>
         <button
           type="button"
           onClick={() => promptCreate(null)}
-          className="rounded-md border border-gray-300 px-2 py-0.5 text-xs hover:bg-gray-100"
+          className="rounded-md border border-border px-2 py-0.5 text-xs text-muted transition hover:border-border-strong hover:text-fg"
         >
           + New
         </button>
@@ -62,7 +64,7 @@ export function FolderSidebar({
       <ul className="space-y-0.5">
         <li>
           <div
-            className={`${ROW_BASE} ${selection === 'all' ? 'bg-violet-100 text-violet-800' : 'hover:bg-gray-100'}`}
+            className={`${ROW_BASE} ${selection === 'all' ? ROW_ACTIVE : ROW_IDLE}`}
             onClick={() => onSelect('all')}
           >
             <span className="w-3" />
@@ -71,7 +73,7 @@ export function FolderSidebar({
         </li>
         <li>
           <div
-            className={`${ROW_BASE} ${selection === 'unfiled' ? 'bg-violet-100 text-violet-800' : 'hover:bg-gray-100'}`}
+            className={`${ROW_BASE} ${selection === 'unfiled' ? ROW_ACTIVE : ROW_IDLE}`}
             onClick={() => onSelect('unfiled')}
           >
             <span className="w-3" />
@@ -132,7 +134,7 @@ function FolderTreeNode({
   return (
     <li>
       <div
-        className={`${ROW_BASE} ${active ? 'bg-violet-100 text-violet-800' : 'hover:bg-gray-100'}`}
+        className={`${ROW_BASE} ${active ? ROW_ACTIVE : ROW_IDLE}`}
         style={{ paddingLeft: `${depth * 14 + 8}px` }}
         onClick={() => onSelect(node.id)}
       >
@@ -142,14 +144,14 @@ function FolderTreeNode({
             e.stopPropagation()
             if (hasChildren) onToggle(node.id)
           }}
-          className={`w-3 shrink-0 text-xs text-gray-400 ${hasChildren ? '' : 'invisible'}`}
+          className={`w-3 shrink-0 text-xs text-subtle ${hasChildren ? '' : 'invisible'}`}
           aria-label={open ? 'Collapse' : 'Expand'}
         >
           {open ? '▾' : '▸'}
         </button>
         <span className="truncate">📁 {node.name}</span>
         {node.asset_count > 0 && (
-          <span className="ml-1 text-xs text-gray-400">{node.asset_count}</span>
+          <span className="ml-1 text-xs text-subtle">{node.asset_count}</span>
         )}
         <span className="ml-auto hidden shrink-0 items-center gap-1 pl-2 group-hover:flex">
           <IconButton title="New subfolder" onClick={() => onAddChild(node.id)}>
@@ -208,7 +210,7 @@ function IconButton({
         e.stopPropagation()
         onClick()
       }}
-      className="flex h-5 w-5 items-center justify-center rounded text-gray-400 hover:bg-gray-200 hover:text-gray-700"
+      className="flex h-5 w-5 items-center justify-center rounded text-subtle transition hover:bg-surface-3 hover:text-fg"
     >
       {children}
     </button>

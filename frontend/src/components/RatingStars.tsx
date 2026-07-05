@@ -17,8 +17,8 @@ export function RatingStars({ value, onChange }: Props) {
           disabled={readOnly}
           aria-label={`Rate ${star} star${star > 1 ? 's' : ''}`}
           onClick={() => onChange?.(current === star ? null : star)}
-          className={`text-xl leading-none ${readOnly ? 'cursor-default' : 'cursor-pointer'} ${
-            star <= current ? 'text-yellow-400' : 'text-gray-300'
+          className={`text-xl leading-none transition ${readOnly ? 'cursor-default' : 'cursor-pointer hover:scale-110'} ${
+            star <= current ? 'text-accent' : 'text-surface-3'
           }`}
         >
           ★

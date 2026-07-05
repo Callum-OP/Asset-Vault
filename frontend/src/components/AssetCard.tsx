@@ -17,17 +17,17 @@ export function AssetCard({ asset }: { asset: Asset }) {
   return (
     <Link
       to={`/assets/${asset.id}`}
-      className="group block overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition hover:shadow-md">
-      <div className="relative flex aspect-square items-center justify-center bg-gray-100">
+      className="group block overflow-hidden rounded-xl border border-border bg-surface transition duration-200 hover:-translate-y-1 hover:border-accent/40 hover:shadow-[var(--shadow-glow)]">
+      <div className="relative flex aspect-square items-center justify-center overflow-hidden bg-surface-2">
         {thumbnailUrl ? (
           <img
             src={thumbnailUrl}
             alt={asset.original_filename}
             loading="lazy"
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.04]"
           />
         ) : (
-          <span className="text-sm font-medium text-gray-400">
+          <span className="text-sm font-medium text-subtle">
             {TYPE_LABELS[asset.asset_type]}
           </span>
         )}
@@ -40,13 +40,13 @@ export function AssetCard({ asset }: { asset: Asset }) {
             </span>
           </span>
         )}
-        <span className="absolute left-2 top-2 rounded bg-black/60 px-1.5 py-0.5 text-[11px] font-medium text-white">
+        <span className="absolute left-2 top-2 rounded-md bg-black/55 px-1.5 py-0.5 text-[11px] font-medium text-white/90 backdrop-blur-sm ring-1 ring-white/10">
           {TYPE_LABELS[asset.asset_type]}
         </span>
       </div>
 
       <div className="space-y-2 p-3">
-        <p className="truncate text-sm font-medium" title={asset.original_filename}>
+        <p className="truncate text-sm font-medium text-fg" title={asset.original_filename}>
           {asset.original_filename}
         </p>
         {asset.dominant_colors && asset.dominant_colors.length > 0 && (
@@ -54,7 +54,7 @@ export function AssetCard({ asset }: { asset: Asset }) {
             {asset.dominant_colors.slice(0, 5).map((color, i) => (
               <span
                 key={`${color}-${i}`}
-                className="h-4 w-4 rounded-full border border-black/10"
+                className="h-4 w-4 rounded-full ring-1 ring-white/10"
                 style={{ backgroundColor: color }}
                 title={color}
               />
@@ -66,7 +66,7 @@ export function AssetCard({ asset }: { asset: Asset }) {
             {asset.tags.map((tag) => (
               <span
                 key={tag.id}
-                className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] text-violet-700"
+                className="rounded-full bg-accent/10 px-2 py-0.5 text-[11px] text-accent"
               >
                 {tag.name}
               </span>

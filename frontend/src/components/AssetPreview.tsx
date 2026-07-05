@@ -19,10 +19,10 @@ export function AssetPreview({ asset, onCapture }: Props) {
 
   if (asset.asset_type === 'model_3d') {
     return (
-      <div className="h-[480px] overflow-hidden rounded-xl border border-gray-200 bg-gradient-to-b from-gray-50 to-gray-200">
+      <div className="h-[480px] overflow-hidden rounded-xl border border-border bg-gradient-to-b from-surface-2 to-canvas">
         <Suspense
           fallback={
-            <div className="flex h-full items-center justify-center text-sm text-gray-400">
+            <div className="flex h-full items-center justify-center text-sm text-subtle">
               Loading 3D viewer…
             </div>
           }
@@ -42,16 +42,15 @@ export function AssetPreview({ asset, onCapture }: Props) {
       <img
         src={fileUrl}
         alt={asset.original_filename}
-        className="max-h-[480px] w-full rounded-xl border border-gray-200 object-contain"
-        style={{ backgroundColor: '#f3f4f6' }}
+        className="max-h-[480px] w-full rounded-xl border border-border bg-surface-2 object-contain"
       />
     )
   }
 
   return (
-    <div className="flex h-[300px] flex-col items-center justify-center gap-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-500">
+    <div className="flex h-[300px] flex-col items-center justify-center gap-3 rounded-xl border border-border bg-surface text-muted">
       <span className="text-sm">No preview available for this file type.</span>
-      <a href={fileUrl} download className="text-sm font-medium text-violet-600 hover:underline">
+      <a href={fileUrl} download className="text-sm font-medium text-accent hover:text-accent-hover">
         Download original
       </a>
     </div>
@@ -116,14 +115,10 @@ function VideoPreview({
         controls
         preload="auto"
         onLoadedData={handleLoadedData}
-        className="max-h-[480px] w-full rounded-xl border border-gray-200 bg-black"
+        className="max-h-[480px] w-full rounded-xl border border-border bg-black"
       />
       {onCapture && (
-        <button
-          type="button"
-          onClick={capture}
-          className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-100"
-        >
+        <button type="button" onClick={capture} className="btn btn-ghost px-3 py-1.5">
           Set current frame as thumbnail
         </button>
       )}

@@ -87,19 +87,19 @@ export function FilterBar({ filters, onChange, onClear, categories, tags }: Filt
     })
 
   return (
-    <div className="space-y-3 rounded-xl border border-gray-200 bg-white p-4">
+    <div className="surface space-y-3 p-4">
       {/* Search + sort + clear */}
       <div className="flex flex-wrap items-center gap-2">
         <input
           value={filters.q}
           onChange={(e) => onChange({ q: e.target.value })}
           placeholder="Search name & description…"
-          className="min-w-48 flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
+          className="input min-w-48 flex-1 py-1.5"
         />
         <select
           value={filters.sort}
           onChange={(e) => onChange({ sort: e.target.value })}
-          className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+          className="select"
           aria-label="Sort by"
         >
           {SORT_OPTIONS.map((s) => (
@@ -111,18 +111,14 @@ export function FilterBar({ filters, onChange, onClear, categories, tags }: Filt
         <button
           type="button"
           onClick={() => onChange({ order: filters.order === 'asc' ? 'desc' : 'asc' })}
-          className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm hover:bg-gray-100"
+          className="btn btn-ghost px-2.5 py-1.5"
           title={filters.order === 'asc' ? 'Ascending' : 'Descending'}
           aria-label="Toggle sort direction"
         >
           {filters.order === 'asc' ? '↑' : '↓'}
         </button>
         {active > 0 && (
-          <button
-            type="button"
-            onClick={onClear}
-            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
-          >
+          <button type="button" onClick={onClear} className="btn btn-ghost px-3 py-1.5">
             Clear ({active})
           </button>
         )}
@@ -143,12 +139,12 @@ export function FilterBar({ filters, onChange, onClear, categories, tags }: Filt
 
       {/* Category + rating + color */}
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-        <label className="flex items-center gap-2 text-sm text-gray-600">
+        <label className="flex items-center gap-2 text-sm text-muted">
           Category
           <select
             value={filters.category}
             onChange={(e) => onChange({ category: e.target.value })}
-            className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+            className="select"
           >
             <option value="">Any</option>
             {categories.map((c) => (
@@ -159,12 +155,12 @@ export function FilterBar({ filters, onChange, onClear, categories, tags }: Filt
           </select>
         </label>
 
-        <div className="flex items-center gap-2 text-sm text-gray-600">
+        <div className="flex items-center gap-2 text-sm text-muted">
           <span>Min rating</span>
           <RatingStars value={filters.minRating || null} onChange={(v) => onChange({ minRating: v ?? 0 })} />
         </div>
 
-        <div className="flex items-center gap-2 text-sm text-gray-600">
+        <div className="flex items-center gap-2 text-sm text-muted">
           <span>Color</span>
           <div className="flex flex-wrap gap-1">
             {COLOR_OPTIONS.map((c) => (
@@ -173,10 +169,10 @@ export function FilterBar({ filters, onChange, onClear, categories, tags }: Filt
                 type="button"
                 title={c.name}
                 onClick={() => onChange({ color: filters.color === c.name ? '' : c.name })}
-                className={`h-6 w-6 rounded-full border transition ${
+                className={`h-6 w-6 rounded-full border border-white/10 transition ${
                   filters.color === c.name
-                    ? 'ring-2 ring-violet-500 ring-offset-1'
-                    : 'border-black/10 hover:scale-110'
+                    ? 'ring-2 ring-accent ring-offset-2 ring-offset-surface'
+                    : 'hover:scale-110'
                 }`}
                 style={{ backgroundColor: c.hex }}
                 aria-label={`Filter by ${c.name}`}
@@ -189,7 +185,7 @@ export function FilterBar({ filters, onChange, onClear, categories, tags }: Filt
 
       {/* Tag chips */}
       {tags.length > 0 && (
-        <div className="flex flex-wrap gap-1 border-t border-gray-100 pt-3">
+        <div className="flex flex-wrap gap-1.5 border-t border-border pt-3">
           {tags.map((tag) => {
             const on = filters.tags.includes(tag.name)
             return (
@@ -197,10 +193,10 @@ export function FilterBar({ filters, onChange, onClear, categories, tags }: Filt
                 key={tag.id}
                 type="button"
                 onClick={() => toggleTag(tag.name)}
-                className={`rounded-full px-2 py-0.5 text-xs ${
+                className={`rounded-full px-2.5 py-0.5 text-xs transition ${
                   on
-                    ? 'bg-violet-600 text-white'
-                    : 'bg-violet-100 text-violet-700 hover:bg-violet-200'
+                    ? 'bg-accent text-accent-contrast'
+                    : 'bg-surface-2 text-muted hover:bg-surface-3 hover:text-fg'
                 }`}
               >
                 {tag.name}
@@ -226,8 +222,10 @@ function TypeChip({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-3 py-1 text-sm ${
-        selected ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+      className={`chip ${
+        selected
+          ? 'bg-accent text-accent-contrast'
+          : 'bg-surface-2 text-muted hover:bg-surface-3 hover:text-fg'
       }`}
     >
       {label}
