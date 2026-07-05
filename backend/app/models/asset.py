@@ -68,7 +68,6 @@ class Asset(Base):
     # User-editable fields
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
-    rating: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # When true, the asset appears in other users' "Others' assets" view and is
     # readable by them. Assets are private by default.
     is_public: Mapped[bool] = mapped_column(

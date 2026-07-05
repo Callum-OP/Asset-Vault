@@ -28,7 +28,6 @@ class AssetRead(BaseModel):
     dominant_colors: list[str] | None
     description: str | None
     source_url: str | None
-    rating: int | None
     category_id: int | None
     category: CategoryRead | None = None
     folder_id: int | None
@@ -36,6 +35,9 @@ class AssetRead(BaseModel):
     tags: list[TagRead] = []
     created_at: datetime
     updated_at: datetime
+
+    # Who shared it (display name only, never the raw email).
+    owner_name: str | None = None
 
     # Social metrics — populated by the API on display endpoints; default to
     # empty for endpoints that don't compute them (e.g. right after an edit).
@@ -49,7 +51,6 @@ class AssetUpdate(BaseModel):
 
     description: str | None = None
     source_url: str | None = None
-    rating: int | None = Field(default=None, ge=0, le=5)
     category_id: int | None = None
     folder_id: int | None = None
     is_public: bool | None = None
@@ -72,7 +73,6 @@ class AssetBatchUpdate(BaseModel):
     remove_tag_ids: list[int] = []
     category_id: int | None = None
     folder_id: int | None = None
-    rating: int | None = Field(default=None, ge=0, le=5)
 
 
 class BatchResult(BaseModel):

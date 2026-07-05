@@ -65,7 +65,6 @@ def _make_asset(
     folder: Folder | None = None,
     category: Category | None = None,
     tags: list[Tag] | None = None,
-    rating: int | None = None,
     is_public: bool = False,
 ) -> Asset:
     """Create one image asset from generated PNG bytes, like a real upload."""
@@ -88,7 +87,6 @@ def _make_asset(
         width=width,
         height=height,
         dominant_colors=dominant_colors,
-        rating=rating,
         is_public=is_public,
         folder_id=folder.id if folder else None,
         category_id=category.id if category else None,
@@ -145,33 +143,43 @@ def seed(db: Session) -> None:
 
     # Demo user's private assets.
     _make_asset(db, demo, "hero-red.png", (200, 60, 60),
-                folder=characters, category=final, tags=[stylized], rating=5)
+                folder=characters, category=final, tags=[stylized])
     _make_asset(db, demo, "hero-blue.png", (60, 90, 200),
-                folder=characters, category=concept, tags=[wip], rating=3)
+                folder=characters, category=concept, tags=[wip])
     _make_asset(db, demo, "forest-green.png", (40, 150, 70),
-                folder=environments, category=final, tags=[low_poly], rating=4)
+                folder=environments, category=final, tags=[low_poly])
     _make_asset(db, demo, "crate-brown.png", (140, 100, 50),
-                folder=props, tags=[low_poly, stylized], rating=2)
+                folder=props, tags=[low_poly, stylized])
     _make_asset(db, demo, "unfiled-gray.png", (130, 130, 130))
 
     # Friend's public assets — these appear under the demo user's "Others' assets".
-    purple = _make_asset(db, friend, "shared-purple.png", (150, 70, 190),
-                         rating=5, is_public=True)
-    teal = _make_asset(db, friend, "shared-teal.png", (40, 170, 170),
-                       rating=4, is_public=True)
+    purple = _make_asset(db, friend, "shared-purple.png", (150, 70, 190), is_public=True)
+    teal = _make_asset(db, friend, "shared-teal.png", (40, 170, 170), is_public=True)
     # ...and one private asset that must NOT be visible to the demo user.
     _make_asset(db, friend, "friend-secret.png", (20, 20, 20))
     db.flush()
 
     # Social activity on the public assets: likes + comments across both users.
+    demo_comment = Comment(
+        asset_id=purple.id, user_id=demo.id, body="Gorgeous colour — love this!"
+    )
     db.add_all([
         AssetLike(asset_id=purple.id, user_id=demo.id),
         AssetLike(asset_id=teal.id, user_id=demo.id),
         AssetLike(asset_id=purple.id, user_id=friend.id),  # you can like your own
-        Comment(asset_id=purple.id, user_id=demo.id, body="Gorgeous colour — love this!"),
-        Comment(asset_id=purple.id, user_id=friend.id, body="Thanks! More coming soon."),
+        demo_comment,
         Comment(asset_id=teal.id, user_id=demo.id, body="Would pair well with the forest set."),
     ])
+    db.flush()
+    # A threaded reply from the owner back to the demo user's comment.
+    db.add(
+        Comment(
+            asset_id=purple.id,
+            user_id=friend.id,
+            parent_id=demo_comment.id,
+            body="Thanks! More coming soon.",
+        )
+    )
 
     db.commit()
     print("Seeded demo data:")

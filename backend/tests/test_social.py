@@ -128,6 +128,101 @@ def test_non_author_non_owner_cannot_delete_comment(
     ).status_code == 404
 
 
+def test_reply_to_comment(client: TestClient, storage_dir: Path) -> None:
+    alice = _auth_headers(client, "alice")
+    bob = _auth_headers(client, "bob")
+    asset = _public_asset(client, alice)
+
+    top = client.post(
+        f"/assets/{asset['id']}/comments", headers=bob, json={"body": "Nice!"}
+    ).json()
+    assert top["parent_id"] is None
+
+    reply = client.post(
+        f"/assets/{asset['id']}/comments",
+        headers=alice,
+        json={"body": "Thanks Bob", "parent_id": top["id"]},
+    )
+    assert reply.status_code == 201
+    assert reply.json()["parent_id"] == top["id"]
+
+    # Both the comment and its reply come back in the flat thread list.
+    comments = client.get(f"/assets/{asset['id']}/comments", headers=alice).json()
+    assert len(comments) == 2
+    # comment_count includes replies.
+    assert client.get(f"/assets/{asset['id']}", headers=alice).json()["comment_count"] == 2
+
+
+def test_can_reply_to_a_reply(client: TestClient, storage_dir: Path) -> None:
+    alice = _auth_headers(client, "alice")
+    asset = _public_asset(client, alice)
+    top = client.post(
+        f"/assets/{asset['id']}/comments", headers=alice, json={"body": "root"}
+    ).json()
+    reply = client.post(
+        f"/assets/{asset['id']}/comments",
+        headers=alice,
+        json={"body": "reply", "parent_id": top["id"]},
+    ).json()
+
+    # Nesting is unlimited — you can reply to a reply.
+    resp = client.post(
+        f"/assets/{asset['id']}/comments",
+        headers=alice,
+        json={"body": "nested", "parent_id": reply["id"]},
+    )
+    assert resp.status_code == 201
+    assert resp.json()["parent_id"] == reply["id"]
+
+
+def test_reply_parent_must_belong_to_asset(client: TestClient, storage_dir: Path) -> None:
+    alice = _auth_headers(client, "alice")
+    a1 = _public_asset(client, alice, name="a1.png")
+    a2 = _public_asset(client, alice, name="a2.png")
+    top = client.post(
+        f"/assets/{a1['id']}/comments", headers=alice, json={"body": "on a1"}
+    ).json()
+
+    # Parent belongs to a different asset — rejected.
+    resp = client.post(
+        f"/assets/{a2['id']}/comments",
+        headers=alice,
+        json={"body": "wrong asset", "parent_id": top["id"]},
+    )
+    assert resp.status_code == 400
+
+
+def test_deleting_comment_removes_its_replies(client: TestClient, storage_dir: Path) -> None:
+    alice = _auth_headers(client, "alice")
+    bob = _auth_headers(client, "bob")
+    asset = _public_asset(client, alice)
+    top = client.post(
+        f"/assets/{asset['id']}/comments", headers=alice, json={"body": "root"}
+    ).json()
+    client.post(
+        f"/assets/{asset['id']}/comments",
+        headers=bob,
+        json={"body": "a reply", "parent_id": top["id"]},
+    )
+    assert len(client.get(f"/assets/{asset['id']}/comments", headers=alice).json()) == 2
+
+    # Deleting the top-level comment cascades to its reply.
+    assert client.delete(
+        f"/assets/{asset['id']}/comments/{top['id']}", headers=alice
+    ).status_code == 204
+    assert client.get(f"/assets/{asset['id']}/comments", headers=alice).json() == []
+
+
+def test_owner_name_surfaces_on_asset(client: TestClient, storage_dir: Path) -> None:
+    alice = _auth_headers(client, "alice")
+    bob = _auth_headers(client, "bob")
+    asset = _public_asset(client, alice)
+    # Bob sees who shared it (a display name derived from the owner's email).
+    detail = client.get(f"/assets/{asset['id']}", headers=bob).json()
+    assert detail["owner_name"]
+    assert "@" not in detail["owner_name"]  # never the raw email
+
+
 def test_empty_comment_rejected(client: TestClient, storage_dir: Path) -> None:
     alice = _auth_headers(client, "alice")
     asset = _public_asset(client, alice)

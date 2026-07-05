@@ -4,7 +4,6 @@ import type { Asset, AssetList } from './types'
 export interface AssetUpdate {
   description?: string | null
   source_url?: string | null
-  rating?: number | null
   category_id?: number | null
   folder_id?: number | null
   is_public?: boolean
@@ -16,7 +15,6 @@ export interface AssetQuery {
   scope?: 'mine' | 'public'
   q?: string
   type?: string
-  min_rating?: number
   category?: string
   tag?: string[]
   color?: string

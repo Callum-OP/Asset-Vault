@@ -38,19 +38,6 @@ def test_filter_by_type(client: TestClient, storage_dir: Path) -> None:
     assert _list(client, h, type="video")["total"] == 0
 
 
-def test_filter_by_min_rating(client: TestClient, storage_dir: Path) -> None:
-    h = auth_headers(client)
-    a_low = upload(client, h, name="low.png")
-    a_high = upload(client, h, name="high.png")
-    upload(client, h, name="unrated.png")  # rating stays NULL
-    client.patch(f"/assets/{a_low['id']}", headers=h, json={"rating": 2})
-    client.patch(f"/assets/{a_high['id']}", headers=h, json={"rating": 5})
-
-    body = _list(client, h, min_rating=4)
-    assert body["total"] == 1
-    assert body["items"][0]["id"] == a_high["id"]
-
-
 def test_search_q_matches_filename_and_description(client: TestClient, storage_dir: Path) -> None:
     h = auth_headers(client)
     sunset = upload(client, h, name="sunset_beach.png")
@@ -122,28 +109,32 @@ def test_filter_by_tag_requires_all(client: TestClient, db_session: Session, sto
     assert both_body["items"][0]["id"] == both["id"]
 
 
-def test_sort_by_rating(client: TestClient, storage_dir: Path) -> None:
-    h = auth_headers(client)
-    ids = []
-    for name, rating in [("a.png", 1), ("b.png", 5), ("c.png", 3)]:
-        a = upload(client, h, name=name)
-        client.patch(f"/assets/{a['id']}", headers=h, json={"rating": rating})
-        ids.append((a["id"], rating))
+def test_sort_by_likes(client: TestClient, storage_dir: Path) -> None:
+    owner = auth_headers(client, "owner")
+    liker = auth_headers(client, "liker")
 
-    asc = [i["rating"] for i in _list(client, h, sort="rating", order="asc")["items"]]
-    desc = [i["rating"] for i in _list(client, h, sort="rating", order="desc")["items"]]
-    assert asc == [1, 3, 5]
-    assert desc == [5, 3, 1]
+    # Three public assets with 0, 1, and 2 likes respectively.
+    zero = upload(client, owner, name="zero.png")
+    one = upload(client, owner, name="one.png")
+    two = upload(client, owner, name="two.png")
+    for a in (zero, one, two):
+        client.patch(f"/assets/{a['id']}", headers=owner, json={"is_public": True})
+    client.post(f"/assets/{one['id']}/like", headers=owner)
+    client.post(f"/assets/{two['id']}/like", headers=owner)
+    client.post(f"/assets/{two['id']}/like", headers=liker)
+
+    desc = [i["id"] for i in _list(client, owner, sort="likes", order="desc")["items"]]
+    asc = [i["id"] for i in _list(client, owner, sort="likes", order="asc")["items"]]
+    assert desc == [two["id"], one["id"], zero["id"]]
+    assert asc == [zero["id"], one["id"], two["id"]]
 
 
 def test_combined_filters(client: TestClient, storage_dir: Path) -> None:
     h = auth_headers(client)
     match = upload(client, h, name="hero_red.png", color=RED)
-    client.patch(f"/assets/{match['id']}", headers=h, json={"rating": 5})
-    # Wrong rating, right color:
-    low = upload(client, h, name="hero_red2.png", color=RED)
-    client.patch(f"/assets/{low['id']}", headers=h, json={"rating": 1})
+    # Right type + query but wrong colour → excluded.
+    upload(client, h, name="hero_blue.png", color=BLUE)
 
-    body = _list(client, h, type="image", min_rating=4, color="red", q="hero")
+    body = _list(client, h, type="image", color="red", q="hero")
     assert body["total"] == 1
     assert body["items"][0]["id"] == match["id"]

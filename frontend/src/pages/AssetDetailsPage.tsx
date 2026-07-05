@@ -18,7 +18,6 @@ import { createCategory, createTag, listCategories, listTags } from '../api/taxo
 import { useAuth } from '../auth/AuthContext'
 import { AssetPreview } from '../components/AssetPreview'
 import { AssetSocial } from '../components/AssetSocial'
-import { RatingStars } from '../components/RatingStars'
 
 function humanSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -165,7 +164,7 @@ export function AssetDetailsPage() {
                 )
               ) : (
                 <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs font-medium text-muted">
-                  Shared by another user · read-only
+                  Shared by {asset.owner_name ?? 'another user'} · read-only
                 </span>
               )}
             </div>
@@ -203,14 +202,6 @@ export function AssetDetailsPage() {
               </div>
             </div>
           )}
-
-          <div>
-            <p className="mb-1.5 text-sm font-medium text-muted">Rating</p>
-            <RatingStars
-              value={asset.rating}
-              onChange={isOwner ? (v) => patch.mutate({ rating: v }) : undefined}
-            />
-          </div>
 
           {isOwner ? (
             <>

@@ -131,26 +131,17 @@ def test_get_asset_and_ownership(client: TestClient, storage_dir: Path) -> None:
     assert client.get("/assets/999999", headers=alice).status_code == 404
 
 
-def test_patch_updates_description_and_rating(client: TestClient, storage_dir: Path) -> None:
+def test_patch_updates_description(client: TestClient, storage_dir: Path) -> None:
     headers = _auth_headers(client)
     asset = _upload(client, headers)
 
     resp = client.patch(
         f"/assets/{asset['id']}",
         headers=headers,
-        json={"description": "A blue square", "rating": 5},
+        json={"description": "A blue square"},
     )
     assert resp.status_code == 200
-    body = resp.json()
-    assert body["description"] == "A blue square"
-    assert body["rating"] == 5
-
-
-def test_patch_rejects_out_of_range_rating(client: TestClient, storage_dir: Path) -> None:
-    headers = _auth_headers(client)
-    asset = _upload(client, headers)
-    resp = client.patch(f"/assets/{asset['id']}", headers=headers, json={"rating": 9})
-    assert resp.status_code == 422
+    assert resp.json()["description"] == "A blue square"
 
 
 def test_patch_rejects_unknown_category(client: TestClient, storage_dir: Path) -> None:

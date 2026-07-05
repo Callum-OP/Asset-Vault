@@ -36,7 +36,6 @@ export interface Asset {
   dominant_colors: string[] | null
   description: string | null
   source_url: string | null
-  rating: number | null
   category_id: number | null
   category: Category | null
   folder_id: number | null
@@ -44,6 +43,7 @@ export interface Asset {
   tags: Tag[]
   created_at: string
   updated_at: string
+  owner_name: string | null
   like_count: number
   comment_count: number
   liked_by_me: boolean
@@ -53,6 +53,7 @@ export interface Comment {
   id: number
   asset_id: number
   user_id: number
+  parent_id: number | null
   author_name: string
   body: string
   created_at: string

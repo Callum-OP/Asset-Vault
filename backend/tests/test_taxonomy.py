@@ -107,7 +107,7 @@ def test_batch_add_tags_and_set_category(client: TestClient, storage_dir: Path) 
     resp = client.post(
         "/assets/batch",
         headers=h,
-        json={"asset_ids": [a1["id"], a2["id"]], "add_tag_ids": [tag], "category_id": cid, "rating": 4},
+        json={"asset_ids": [a1["id"], a2["id"]], "add_tag_ids": [tag], "category_id": cid},
     )
     assert resp.status_code == 200
     assert resp.json()["updated"] == 2
@@ -116,7 +116,6 @@ def test_batch_add_tags_and_set_category(client: TestClient, storage_dir: Path) 
         body = client.get(f"/assets/{a['id']}", headers=h).json()
         assert {t["name"] for t in body["tags"]} == {"shared"}
         assert body["category"]["name"] == "Batch"
-        assert body["rating"] == 4
 
 
 def test_batch_rejects_unowned_asset(client: TestClient, storage_dir: Path) -> None:
@@ -128,7 +127,7 @@ def test_batch_rejects_unowned_asset(client: TestClient, storage_dir: Path) -> N
     resp = client.post(
         "/assets/batch",
         headers=alice,
-        json={"asset_ids": [a_alice["id"], a_bob["id"]], "rating": 3},
+        json={"asset_ids": [a_alice["id"], a_bob["id"]], "category_id": None},
     )
     assert resp.status_code == 404
 

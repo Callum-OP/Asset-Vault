@@ -44,7 +44,6 @@ def test_asset_round_trip_with_relationships(db: Session) -> None:
         asset_type=AssetType.model_3d,
         dominant_colors=["#8a8a8a", "#5c5c5c"],
         description="A mossy boulder",
-        rating=4,
         tags=[tag_a, tag_b],
     )
 
@@ -58,7 +57,6 @@ def test_asset_round_trip_with_relationships(db: Session) -> None:
     assert fetched.original_filename == "rock.glb"
     assert fetched.asset_type is AssetType.model_3d
     assert fetched.dominant_colors == ["#8a8a8a", "#5c5c5c"]
-    assert fetched.rating == 4
     assert fetched.created_at is not None  # server_default populated
     assert fetched.updated_at is not None
 

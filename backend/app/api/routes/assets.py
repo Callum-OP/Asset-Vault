@@ -14,7 +14,16 @@ from sqlalchemy.sql import Select
 from app.api.deps import CurrentUser
 from app.core.config import get_settings
 from app.core.database import get_db
-from app.models import Asset, AssetLike, AssetType, Category, Comment, Folder, Tag, User
+from app.models import (
+    Asset,
+    AssetLike,
+    AssetType,
+    Category,
+    Comment,
+    Folder,
+    Tag,
+    User,
+)
 from app.schemas.asset import (
     AssetBatchUpdate,
     AssetList,
@@ -30,11 +39,21 @@ from app.services.storage import LocalStorage, get_storage
 
 _SORT_COLUMNS = {
     "created_at": Asset.created_at,
-    "rating": Asset.rating,
     "file_size": Asset.file_size,
     "original_filename": Asset.original_filename,
 }
-SortField = Literal["created_at", "rating", "file_size", "original_filename"]
+SortField = Literal["created_at", "likes", "file_size", "original_filename"]
+
+
+def _like_count_subquery():
+    """Correlated scalar subquery: an asset's like count (0 if none)."""
+    return (
+        select(func.count())
+        .select_from(AssetLike)
+        .where(AssetLike.asset_id == Asset.id)
+        .correlate(Asset)
+        .scalar_subquery()
+    )
 SortOrder = Literal["asc", "desc"]
 
 router = APIRouter(prefix="/assets", tags=["assets"])
@@ -106,9 +125,13 @@ def _get_social_asset(asset_id: int, db: Session, user: User) -> Asset:
     return asset
 
 
-def _display_name(user: User) -> str:
+def _display_name_from(email: str, full_name: str | None) -> str:
     """A friendly name for public display that doesn't leak the full email."""
-    return user.full_name or user.email.split("@")[0]
+    return full_name or email.split("@")[0]
+
+
+def _display_name(user: User) -> str:
+    return _display_name_from(user.email, user.full_name)
 
 
 def _comment_read(comment: Comment) -> CommentRead:
@@ -116,6 +139,7 @@ def _comment_read(comment: Comment) -> CommentRead:
         id=comment.id,
         asset_id=comment.asset_id,
         user_id=comment.user_id,
+        parent_id=comment.parent_id,
         author_name=_display_name(comment.user),
         body=comment.body,
         created_at=comment.created_at,
@@ -123,7 +147,7 @@ def _comment_read(comment: Comment) -> CommentRead:
 
 
 def _attach_social(assets: list[Asset], db: Session, user: User) -> list[Asset]:
-    """Populate like_count / comment_count / liked_by_me on each asset in place."""
+    """Populate like/comment metrics and the owner's display name in place."""
     ids = [a.id for a in assets]
     if not ids:
         return assets
@@ -148,10 +172,18 @@ def _attach_social(assets: list[Asset], db: Session, user: User) -> list[Asset]:
             )
         ).all()
     )
+    owner_ids = {a.owner_id for a in assets}
+    owner_names = {
+        uid: _display_name_from(email, full_name)
+        for uid, email, full_name in db.execute(
+            select(User.id, User.email, User.full_name).where(User.id.in_(owner_ids))
+        ).all()
+    }
     for asset in assets:
         asset.like_count = like_counts.get(asset.id, 0)
         asset.comment_count = comment_counts.get(asset.id, 0)
         asset.liked_by_me = asset.id in liked
+        asset.owner_name = owner_names.get(asset.owner_id)
     return assets
 
 
@@ -250,7 +282,6 @@ def list_assets(
     ] = "mine",
     q: Annotated[str | None, Query(description="Search filename & description")] = None,
     type: Annotated[AssetType | None, Query(description="Filter by asset type")] = None,
-    min_rating: Annotated[int | None, Query(ge=0, le=5)] = None,
     category: Annotated[str | None, Query(description="Category name")] = None,
     tag: Annotated[list[str] | None, Query(description="Tag name(s); asset must have all")] = None,
     color: Annotated[str | None, Query(description="Color bucket name or hex")] = None,
@@ -282,8 +313,6 @@ def list_assets(
         )
     if type is not None:
         stmt = stmt.where(Asset.asset_type == type)
-    if min_rating is not None:
-        stmt = stmt.where(Asset.rating >= min_rating)
     if scope == "mine":
         if unfiled:
             stmt = stmt.where(Asset.folder_id.is_(None))
@@ -312,7 +341,11 @@ def list_assets(
                 )
             )
 
-    sort_col = _SORT_COLUMNS[sort]
+    if sort == "likes":
+        # Sort by like count (most/least liked).
+        sort_col = _like_count_subquery()
+    else:
+        sort_col = _SORT_COLUMNS[sort]
     sort_col = sort_col.asc() if order == "asc" else sort_col.desc()
     stmt = stmt.order_by(sort_col, Asset.id.desc())
 
@@ -342,7 +375,7 @@ def batch_update_assets(
     current_user: CurrentUser,
     db: Annotated[Session, Depends(get_db)],
 ) -> BatchResult:
-    """Apply tag/category/rating changes to many owned assets at once."""
+    """Apply tag/category/folder changes to many owned assets at once."""
     unique_ids = set(payload.asset_ids)
     assets = db.scalars(
         select(Asset)
@@ -375,8 +408,6 @@ def batch_update_assets(
             asset.category_id = payload.category_id
         if "folder_id" in fields:
             asset.folder_id = payload.folder_id
-        if "rating" in fields:
-            asset.rating = payload.rating
 
     db.commit()
     return BatchResult(updated=len(assets))
@@ -521,12 +552,23 @@ def add_comment(
     current_user: CurrentUser,
     db: Annotated[Session, Depends(get_db)],
 ) -> CommentRead:
-    """Post a comment on a public asset."""
+    """Post a comment on a public asset, or a reply to a top-level comment."""
     asset = _get_social_asset(asset_id, db, current_user)
     body = payload.body.strip()
     if not body:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Comment cannot be empty")
-    comment = Comment(asset_id=asset.id, user_id=current_user.id, body=body)
+
+    if payload.parent_id is not None:
+        parent = db.get(Comment, payload.parent_id)
+        if parent is None or parent.asset_id != asset.id:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Parent comment not found")
+
+    comment = Comment(
+        asset_id=asset.id,
+        user_id=current_user.id,
+        body=body,
+        parent_id=payload.parent_id,
+    )
     db.add(comment)
     db.commit()
     db.refresh(comment)
@@ -571,7 +613,7 @@ def update_asset(
     current_user: CurrentUser,
     db: Annotated[Session, Depends(get_db)],
 ) -> Asset:
-    """Update editable metadata (description, source_url, rating, category)."""
+    """Update editable metadata (description, source_url, category, folder, visibility)."""
     asset = _get_owned_asset(asset_id, db, current_user)
     changes = payload.model_dump(exclude_unset=True)
 

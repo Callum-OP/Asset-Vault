@@ -85,7 +85,7 @@ def test_non_owner_cannot_edit_or_delete_public_asset(
 
     # Readable, but not writable/deletable by Bob.
     assert client.patch(
-        f"/assets/{asset['id']}", headers=bob, json={"rating": 1}
+        f"/assets/{asset['id']}", headers=bob, json={"description": "hacked"}
     ).status_code == 404
     assert client.delete(f"/assets/{asset['id']}", headers=bob).status_code == 404
 

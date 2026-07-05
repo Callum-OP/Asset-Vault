@@ -1,5 +1,4 @@
 import type { AssetType, Category, Tag } from '../api/types'
-import { RatingStars } from './RatingStars'
 
 /** Gallery filter state, mirrored to the backend's list query params. */
 export interface Filters {
@@ -8,7 +7,6 @@ export interface Filters {
   category: string
   tags: string[]
   color: string
-  minRating: number
   sort: string
   order: 'asc' | 'desc'
 }
@@ -19,7 +17,6 @@ export const EMPTY_FILTERS: Filters = {
   category: '',
   tags: [],
   color: '',
-  minRating: 0,
   sort: 'created_at',
   order: 'desc',
 }
@@ -31,8 +28,7 @@ export function activeFilterCount(f: Filters): number {
     (f.type ? 1 : 0) +
     (f.category ? 1 : 0) +
     f.tags.length +
-    (f.color ? 1 : 0) +
-    (f.minRating > 0 ? 1 : 0)
+    (f.color ? 1 : 0)
   )
 }
 
@@ -64,7 +60,7 @@ const COLOR_OPTIONS: { name: string; hex: string }[] = [
 const SORT_OPTIONS: { value: string; label: string }[] = [
   { value: 'created_at', label: 'Date added' },
   { value: 'original_filename', label: 'Name' },
-  { value: 'rating', label: 'Rating' },
+  { value: 'likes', label: 'Most liked' },
   { value: 'file_size', label: 'Size' },
 ]
 
@@ -137,7 +133,7 @@ export function FilterBar({ filters, onChange, onClear, categories, tags }: Filt
         ))}
       </div>
 
-      {/* Category + rating + color */}
+      {/* Category + color */}
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
         <label className="flex items-center gap-2 text-sm text-muted">
           Category
@@ -154,11 +150,6 @@ export function FilterBar({ filters, onChange, onClear, categories, tags }: Filt
             ))}
           </select>
         </label>
-
-        <div className="flex items-center gap-2 text-sm text-muted">
-          <span>Min rating</span>
-          <RatingStars value={filters.minRating || null} onChange={(v) => onChange({ minRating: v ?? 0 })} />
-        </div>
 
         <div className="flex items-center gap-2 text-sm text-muted">
           <span>Color</span>

@@ -54,7 +54,6 @@ export function GalleryPage() {
   if (filters.category) assetParams.category = filters.category
   if (filters.tags.length) assetParams.tag = filters.tags
   if (filters.color) assetParams.color = filters.color
-  if (filters.minRating > 0) assetParams.min_rating = filters.minRating
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['assets', selection, includeSubfolders, { ...filters, q: debouncedQ }],

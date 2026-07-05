@@ -16,8 +16,15 @@ export async function listComments(id: number): Promise<Comment[]> {
   return data
 }
 
-export async function addComment(id: number, body: string): Promise<Comment> {
-  const { data } = await api.post<Comment>(`/assets/${id}/comments`, { body })
+export async function addComment(
+  id: number,
+  body: string,
+  parentId: number | null = null,
+): Promise<Comment> {
+  const { data } = await api.post<Comment>(`/assets/${id}/comments`, {
+    body,
+    parent_id: parentId,
+  })
   return data
 }
 

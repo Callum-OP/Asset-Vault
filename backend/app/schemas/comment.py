@@ -11,6 +11,7 @@ class CommentRead(BaseModel):
     id: int
     asset_id: int
     user_id: int
+    parent_id: int | None
     author_name: str
     body: str
     created_at: datetime
@@ -18,6 +19,8 @@ class CommentRead(BaseModel):
 
 class CommentCreate(BaseModel):
     body: str = Field(min_length=1, max_length=2000)
+    # Set to a top-level comment's id to post a reply; omit for a top-level comment.
+    parent_id: int | None = None
 
 
 class LikeStatus(BaseModel):
