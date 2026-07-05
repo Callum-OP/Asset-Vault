@@ -7,11 +7,13 @@ export interface AssetUpdate {
   rating?: number | null
   category_id?: number | null
   folder_id?: number | null
+  is_public?: boolean
 }
 
 export interface AssetQuery {
   limit?: number
   offset?: number
+  scope?: 'mine' | 'public'
   q?: string
   type?: string
   min_rating?: number

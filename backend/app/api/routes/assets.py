@@ -79,6 +79,18 @@ def _get_owned_asset(asset_id: int, db: Session, user: User) -> Asset:
     return asset
 
 
+def _get_viewable_asset(asset_id: int, db: Session, user: User) -> Asset:
+    """Return the asset if the user may view it, else 404.
+
+    A user can view their own assets and any other user's *public* asset.
+    Editing/deleting still goes through ``_get_owned_asset``.
+    """
+    asset = db.get(Asset, asset_id)
+    if asset is None or (asset.owner_id != user.id and not asset.is_public):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Asset not found")
+    return asset
+
+
 def _get_owned_tags(tag_ids: list[int], db: Session, user: User) -> list[Tag]:
     """Fetch the user's tags for the given ids, or 400 if any is missing."""
     if not tag_ids:
@@ -168,6 +180,10 @@ def list_assets(
     db: Annotated[Session, Depends(get_db)],
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
+    scope: Annotated[
+        Literal["mine", "public"],
+        Query(description="'mine' = your assets; 'public' = other users' public assets"),
+    ] = "mine",
     q: Annotated[str | None, Query(description="Search filename & description")] = None,
     type: Annotated[AssetType | None, Query(description="Filter by asset type")] = None,
     min_rating: Annotated[int | None, Query(ge=0, le=5)] = None,
@@ -182,8 +198,18 @@ def list_assets(
     sort: SortField = "created_at",
     order: SortOrder = "desc",
 ) -> AssetList:
-    """List the current user's assets with optional filtering, search, and sorting."""
-    stmt: Select = select(Asset).where(Asset.owner_id == current_user.id)
+    """List assets with optional filtering, search, and sorting.
+
+    ``scope='mine'`` (default) lists the current user's own assets and supports
+    folder/category/tag filters. ``scope='public'`` lists *other* users' public
+    assets; per-owner filters (folder, category, tag) don't apply there.
+    """
+    if scope == "public":
+        # Every public asset, including the user's own, so they can confirm an
+        # asset actually went public. Private assets never appear here.
+        stmt: Select = select(Asset).where(Asset.is_public.is_(True))
+    else:
+        stmt = select(Asset).where(Asset.owner_id == current_user.id)
 
     if q:
         like = f"%{q}%"
@@ -194,32 +220,33 @@ def list_assets(
         stmt = stmt.where(Asset.asset_type == type)
     if min_rating is not None:
         stmt = stmt.where(Asset.rating >= min_rating)
-    if unfiled:
-        stmt = stmt.where(Asset.folder_id.is_(None))
-    elif folder_id is not None:
-        if include_subfolders:
-            ids = _folder_and_descendant_ids(folder_id, db, current_user)
-            stmt = stmt.where(Asset.folder_id.in_(ids))
-        else:
-            stmt = stmt.where(Asset.folder_id == folder_id)
-    if category:
-        stmt = stmt.where(
-            Asset.category.has(
-                and_(
-                    func.lower(Category.name) == category.lower(),
-                    Category.owner_id == current_user.id,
+    if scope == "mine":
+        if unfiled:
+            stmt = stmt.where(Asset.folder_id.is_(None))
+        elif folder_id is not None:
+            if include_subfolders:
+                ids = _folder_and_descendant_ids(folder_id, db, current_user)
+                stmt = stmt.where(Asset.folder_id.in_(ids))
+            else:
+                stmt = stmt.where(Asset.folder_id == folder_id)
+        if category:
+            stmt = stmt.where(
+                Asset.category.has(
+                    and_(
+                        func.lower(Category.name) == category.lower(),
+                        Category.owner_id == current_user.id,
+                    )
                 )
             )
-        )
-    for tag_name in tag or []:
-        stmt = stmt.where(
-            Asset.tags.any(
-                and_(
-                    func.lower(Tag.name) == tag_name.lower(),
-                    Tag.owner_id == current_user.id,
+        for tag_name in tag or []:
+            stmt = stmt.where(
+                Asset.tags.any(
+                    and_(
+                        func.lower(Tag.name) == tag_name.lower(),
+                        Tag.owner_id == current_user.id,
+                    )
                 )
             )
-        )
 
     sort_col = _SORT_COLUMNS[sort]
     sort_col = sort_col.asc() if order == "asc" else sort_col.desc()
@@ -345,6 +372,15 @@ async def set_asset_thumbnail(
     except OSError:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid image")
     asset.thumbnail_path = storage.save_thumbnail(thumbnail, asset.stored_filename)
+    # The screenshot is a real raster image, so derive the same preview metadata
+    # we extract for uploaded images: dominant colours (and dimensions if absent)
+    # so 3D models and videos become colour-searchable from their capture.
+    try:
+        asset.dominant_colors = media.extract_dominant_colors(data)
+        if asset.width is None or asset.height is None:
+            asset.width, asset.height = media.extract_dimensions(data)
+    except OSError:
+        pass
     db.commit()
     db.refresh(asset)
     return asset
@@ -354,8 +390,8 @@ async def set_asset_thumbnail(
 def get_asset(
     asset_id: int, current_user: CurrentUser, db: Annotated[Session, Depends(get_db)]
 ) -> Asset:
-    """Fetch a single owned asset."""
-    return _get_owned_asset(asset_id, db, current_user)
+    """Fetch a single asset the user may view (own, or another user's public)."""
+    return _get_viewable_asset(asset_id, db, current_user)
 
 
 @router.patch("/{asset_id}", response_model=AssetRead)

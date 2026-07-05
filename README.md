@@ -34,6 +34,23 @@ cd backend
 uv run pytest
 ```
 
+### Seed demo data
+Populate the database with a couple of demo users and sample assets (generated
+on the fly — no files to download) so you can explore the app immediately,
+including the **public / private** feature:
+
+```bash
+cd backend
+uv run python -m scripts.seed          # create demo data (idempotent)
+uv run python -m scripts.seed --reset  # wipe the demo users first, then reseed
+```
+
+This creates:
+- `demo@example.com` / `demopass1` — your main account with folders, tags,
+  categories, and five private assets.
+- `friend@example.com` / `friendpass1` — a second account owning public assets
+  that appear under **Others' assets** when you sign in as the demo user.
+
 ## Frontend — run
 ```bash
 cd frontend
@@ -100,9 +117,35 @@ You need a free **OAuth Client ID** from Google. It's public (safe to commit to
 > Until `VITE_GOOGLE_CLIENT_ID` is set, the Google button is simply hidden and
 > email/password auth works as normal.
 
+## Public & private assets
+Every asset is **private by default** — only its owner can see or edit it. On an
+asset's details page, the owner can flip the **Visibility** toggle to *Public*.
+Public assets:
+- appear in every other user's **Others' assets** view in the sidebar,
+- are **read-only** to those other users (they can open and view, but not edit,
+  delete, or re-file them),
+- stay editable and deletable only by their owner.
+
+The sidebar's own-asset views are grouped under **All my assets** (with the
+usual folders and **Unfiled**), while **Others' assets** lists every public
+asset — those shared by other users *and* your own public ones, so you can
+confirm an asset actually went public. Your private assets never appear there.
+
+## Notes
+- **3D models & videos:** dominant colours are extracted from the preview
+  snapshot the browser captures (the same colour analysis used for image
+  uploads), so captured assets become colour-searchable.
+- **Upload size limit:** capped by `MAX_UPLOAD_BYTES` (default 50 MiB). Oversized
+  requests are rejected early via the `Content-Length` header.
+- **Optional, not included:** video *first-frame* server-side thumbnails require
+  `ffmpeg` (the app captures a frame client-side instead), and a Dockerfile is
+  omitted since this setup runs directly against local Postgres + filesystem
+  storage. Both can be added later without touching the core.
+
 ## Project layout
 ```
 Asset-Vault/
 ├── backend/    # FastAPI service
+│   └── scripts/seed.py   # demo-data seeder
 └── frontend/   # Vite React app
 ```

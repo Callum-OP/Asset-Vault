@@ -43,6 +43,14 @@ export function AssetCard({ asset }: { asset: Asset }) {
         <span className="absolute left-2 top-2 rounded-md bg-black/55 px-1.5 py-0.5 text-[11px] font-medium text-white/90 backdrop-blur-sm ring-1 ring-white/10">
           {TYPE_LABELS[asset.asset_type]}
         </span>
+        {asset.is_public && (
+          <span
+            title="Public"
+            className="absolute right-2 top-2 rounded-md bg-black/55 px-1.5 py-0.5 text-[11px] font-medium text-white/90 backdrop-blur-sm ring-1 ring-white/10"
+          >
+            🌐
+          </span>
+        )}
       </div>
 
       <div className="space-y-2 p-3">

@@ -71,7 +71,11 @@ export function RegisterPage() {
             className="input"
           />
           {error && <p className="text-sm text-red-400">{error}</p>}
-          <button type="submit" disabled={busy} className="btn btn-accent w-full">
+          <button
+            type="submit"
+            disabled={busy || !email.trim() || password.length < 8}
+            className="btn btn-accent w-full"
+          >
             {busy ? 'Creating…' : 'Create account'}
           </button>
         </form>

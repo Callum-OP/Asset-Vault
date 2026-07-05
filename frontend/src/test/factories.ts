@@ -3,6 +3,8 @@ import type { Asset } from '../api/types'
 export function makeAsset(overrides: Partial<Asset> = {}): Asset {
   return {
     id: 1,
+    owner_id: 1,
+    is_public: false,
     original_filename: 'hero.png',
     stored_filename: 'abc123.png',
     file_path: 'files/abc123.png',

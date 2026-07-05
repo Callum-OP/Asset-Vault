@@ -4,7 +4,7 @@ import type { FolderNode } from '../api/folderTree'
 import type { FolderWithCount } from '../api/types'
 
 /** What the gallery is currently showing. */
-export type FolderSelection = 'all' | 'unfiled' | number
+export type FolderSelection = 'all' | 'unfiled' | 'public' | number
 
 interface FolderSidebarProps {
   tree: FolderNode[]
@@ -64,11 +64,20 @@ export function FolderSidebar({
       <ul className="space-y-0.5">
         <li>
           <div
+            className={`${ROW_BASE} ${selection === 'public' ? ROW_ACTIVE : ROW_IDLE}`}
+            onClick={() => onSelect('public')}
+          >
+            <span className="w-3" />
+            <span>🌐 Others' assets</span>
+          </div>
+        </li>
+        <li>
+          <div
             className={`${ROW_BASE} ${selection === 'all' ? ROW_ACTIVE : ROW_IDLE}`}
             onClick={() => onSelect('all')}
           >
             <span className="w-3" />
-            <span>🗂️ All assets</span>
+            <span>🗂️ All my assets</span>
           </div>
         </li>
         <li>

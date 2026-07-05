@@ -40,8 +40,11 @@ export function GalleryPage() {
 
   const debouncedQ = useDebouncedValue(filters.q.trim(), 300)
 
+  const isPublicView = selection === 'public'
+
   const assetParams: AssetQuery = { limit: 100, sort: filters.sort, order: filters.order }
-  if (selection === 'unfiled') assetParams.unfiled = true
+  if (isPublicView) assetParams.scope = 'public'
+  else if (selection === 'unfiled') assetParams.unfiled = true
   else if (typeof selection === 'number') {
     assetParams.folder_id = selection
     assetParams.include_subfolders = includeSubfolders
@@ -108,7 +111,13 @@ export function GalleryPage() {
   const filtersActive = activeFilterCount(filters) > 0
 
   const heading =
-    selection === 'all' ? 'All assets' : selection === 'unfiled' ? 'Unfiled' : crumbs.at(-1)?.name
+    selection === 'all'
+      ? 'All my assets'
+      : selection === 'unfiled'
+        ? 'Unfiled'
+        : selection === 'public'
+          ? "Others' assets"
+          : crumbs.at(-1)?.name
 
   return (
     <div className="flex gap-8">
@@ -138,7 +147,13 @@ export function GalleryPage() {
               ))}
             </div>
             <h1 className="text-2xl font-semibold tracking-tight text-fg">{heading}</h1>
-            <p className="text-sm text-muted">{data ? `${data.total} item(s)` : ' '}</p>
+            <p className="text-sm text-muted">
+              {isPublicView
+                ? `${data ? data.total : 0} public item(s) · shared by you and other users`
+                : data
+                  ? `${data.total} item(s)`
+                  : ' '}
+            </p>
           </div>
 
           {typeof selection === 'number' && (
@@ -154,11 +169,15 @@ export function GalleryPage() {
           )}
         </div>
 
-        <UploadDropzone onFiles={handleFiles} busy={upload.isPending} />
-        {upload.isError && (
-          <p className="text-sm text-red-400">
-            Some files could not be uploaded (unsupported type or too large).
-          </p>
+        {!isPublicView && (
+          <>
+            <UploadDropzone onFiles={handleFiles} busy={upload.isPending} />
+            {upload.isError && (
+              <p className="text-sm text-red-400">
+                Some files could not be uploaded (unsupported type or too large).
+              </p>
+            )}
+          </>
         )}
 
         <FilterBar
@@ -181,6 +200,8 @@ export function GalleryPage() {
                   Clear filters
                 </button>
               </>
+            ) : isPublicView ? (
+              'No public assets yet — make one public from its details page.'
             ) : selection === 'all' ? (
               'No assets yet — drop a file above to get started.'
             ) : (

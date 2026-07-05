@@ -14,6 +14,8 @@ class AssetRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    owner_id: int
+    is_public: bool
     original_filename: str
     stored_filename: str
     file_path: str
@@ -44,6 +46,7 @@ class AssetUpdate(BaseModel):
     rating: int | None = Field(default=None, ge=0, le=5)
     category_id: int | None = None
     folder_id: int | None = None
+    is_public: bool | None = None
 
 
 class AssetList(BaseModel):

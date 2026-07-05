@@ -6,7 +6,7 @@ import enum
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Enum as SQLEnum, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, Enum as SQLEnum, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -67,6 +67,11 @@ class Asset(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     rating: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # When true, the asset appears in other users' "Others' assets" view and is
+    # readable by them. Assets are private by default.
+    is_public: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="false", default=False, index=True
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

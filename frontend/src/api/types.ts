@@ -22,6 +22,8 @@ export interface FolderWithCount extends Folder {
 
 export interface Asset {
   id: number
+  owner_id: number
+  is_public: boolean
   original_filename: string
   stored_filename: string
   file_path: string
