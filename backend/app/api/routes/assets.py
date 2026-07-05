@@ -14,7 +14,7 @@ from sqlalchemy.sql import Select
 from app.api.deps import CurrentUser
 from app.core.config import get_settings
 from app.core.database import get_db
-from app.models import Asset, AssetType, Category, Folder, Tag, User
+from app.models import Asset, AssetLike, AssetType, Category, Comment, Folder, Tag, User
 from app.schemas.asset import (
     AssetBatchUpdate,
     AssetList,
@@ -23,6 +23,7 @@ from app.schemas.asset import (
     AssetUpdate,
     BatchResult,
 )
+from app.schemas.comment import CommentCreate, CommentRead, LikeStatus
 from app.services import color as color_service
 from app.services import media
 from app.services.storage import LocalStorage, get_storage
@@ -89,6 +90,69 @@ def _get_viewable_asset(asset_id: int, db: Session, user: User) -> Asset:
     if asset is None or (asset.owner_id != user.id and not asset.is_public):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Asset not found")
     return asset
+
+
+def _get_social_asset(asset_id: int, db: Session, user: User) -> Asset:
+    """Return a viewable asset that also accepts likes/comments (must be public).
+
+    Social interaction lives on the public surface, so private assets — even
+    your own — can't be liked or commented on until they're made public.
+    """
+    asset = _get_viewable_asset(asset_id, db, user)
+    if not asset.is_public:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "Likes and comments are only for public assets"
+        )
+    return asset
+
+
+def _display_name(user: User) -> str:
+    """A friendly name for public display that doesn't leak the full email."""
+    return user.full_name or user.email.split("@")[0]
+
+
+def _comment_read(comment: Comment) -> CommentRead:
+    return CommentRead(
+        id=comment.id,
+        asset_id=comment.asset_id,
+        user_id=comment.user_id,
+        author_name=_display_name(comment.user),
+        body=comment.body,
+        created_at=comment.created_at,
+    )
+
+
+def _attach_social(assets: list[Asset], db: Session, user: User) -> list[Asset]:
+    """Populate like_count / comment_count / liked_by_me on each asset in place."""
+    ids = [a.id for a in assets]
+    if not ids:
+        return assets
+    like_counts = dict(
+        db.execute(
+            select(AssetLike.asset_id, func.count())
+            .where(AssetLike.asset_id.in_(ids))
+            .group_by(AssetLike.asset_id)
+        ).all()
+    )
+    comment_counts = dict(
+        db.execute(
+            select(Comment.asset_id, func.count())
+            .where(Comment.asset_id.in_(ids))
+            .group_by(Comment.asset_id)
+        ).all()
+    )
+    liked = set(
+        db.scalars(
+            select(AssetLike.asset_id).where(
+                AssetLike.asset_id.in_(ids), AssetLike.user_id == user.id
+            )
+        ).all()
+    )
+    for asset in assets:
+        asset.like_count = like_counts.get(asset.id, 0)
+        asset.comment_count = comment_counts.get(asset.id, 0)
+        asset.liked_by_me = asset.id in liked
+    return assets
 
 
 def _get_owned_tags(tag_ids: list[int], db: Session, user: User) -> list[Tag]:
@@ -268,6 +332,7 @@ def list_assets(
         total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
         items = list(db.scalars(stmt.options(*_EAGER).limit(limit).offset(offset)).all())
 
+    _attach_social(items, db, current_user)
     return AssetList(items=items, total=total, limit=limit, offset=offset)
 
 
@@ -386,12 +451,117 @@ async def set_asset_thumbnail(
     return asset
 
 
+# ── Social: likes & comments ─────────────────────────────────────────────────
+
+
+def _like_count(asset_id: int, db: Session) -> int:
+    return (
+        db.scalar(
+            select(func.count()).select_from(AssetLike).where(AssetLike.asset_id == asset_id)
+        )
+        or 0
+    )
+
+
+@router.post("/{asset_id}/like", response_model=LikeStatus)
+def like_asset(
+    asset_id: int, current_user: CurrentUser, db: Annotated[Session, Depends(get_db)]
+) -> LikeStatus:
+    """Like a public asset (idempotent — liking again is a no-op)."""
+    asset = _get_social_asset(asset_id, db, current_user)
+    existing = db.scalar(
+        select(AssetLike).where(
+            AssetLike.asset_id == asset.id, AssetLike.user_id == current_user.id
+        )
+    )
+    if existing is None:
+        db.add(AssetLike(asset_id=asset.id, user_id=current_user.id))
+        db.commit()
+    return LikeStatus(liked_by_me=True, like_count=_like_count(asset.id, db))
+
+
+@router.delete("/{asset_id}/like", response_model=LikeStatus)
+def unlike_asset(
+    asset_id: int, current_user: CurrentUser, db: Annotated[Session, Depends(get_db)]
+) -> LikeStatus:
+    """Remove your like from a public asset (idempotent)."""
+    asset = _get_social_asset(asset_id, db, current_user)
+    existing = db.scalar(
+        select(AssetLike).where(
+            AssetLike.asset_id == asset.id, AssetLike.user_id == current_user.id
+        )
+    )
+    if existing is not None:
+        db.delete(existing)
+        db.commit()
+    return LikeStatus(liked_by_me=False, like_count=_like_count(asset.id, db))
+
+
+@router.get("/{asset_id}/comments", response_model=list[CommentRead])
+def list_comments(
+    asset_id: int, current_user: CurrentUser, db: Annotated[Session, Depends(get_db)]
+) -> list[CommentRead]:
+    """List comments on a public asset, oldest first."""
+    asset = _get_social_asset(asset_id, db, current_user)
+    comments = db.scalars(
+        select(Comment)
+        .where(Comment.asset_id == asset.id)
+        .options(joinedload(Comment.user))
+        .order_by(Comment.created_at.asc(), Comment.id.asc())
+    ).all()
+    return [_comment_read(c) for c in comments]
+
+
+@router.post(
+    "/{asset_id}/comments", response_model=CommentRead, status_code=status.HTTP_201_CREATED
+)
+def add_comment(
+    asset_id: int,
+    payload: CommentCreate,
+    current_user: CurrentUser,
+    db: Annotated[Session, Depends(get_db)],
+) -> CommentRead:
+    """Post a comment on a public asset."""
+    asset = _get_social_asset(asset_id, db, current_user)
+    body = payload.body.strip()
+    if not body:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Comment cannot be empty")
+    comment = Comment(asset_id=asset.id, user_id=current_user.id, body=body)
+    db.add(comment)
+    db.commit()
+    db.refresh(comment)
+    return _comment_read(comment)
+
+
+@router.delete("/{asset_id}/comments/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_comment(
+    asset_id: int,
+    comment_id: int,
+    current_user: CurrentUser,
+    db: Annotated[Session, Depends(get_db)],
+) -> Response:
+    """Delete a comment. Allowed for the comment's author or the asset's owner."""
+    comment = db.get(Comment, comment_id)
+    if comment is None or comment.asset_id != asset_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Comment not found")
+    asset = db.get(Asset, asset_id)
+    is_author = comment.user_id == current_user.id
+    is_asset_owner = asset is not None and asset.owner_id == current_user.id
+    if not (is_author or is_asset_owner):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Comment not found")
+    db.delete(comment)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.get("/{asset_id}", response_model=AssetRead)
 def get_asset(
     asset_id: int, current_user: CurrentUser, db: Annotated[Session, Depends(get_db)]
 ) -> Asset:
     """Fetch a single asset the user may view (own, or another user's public)."""
-    return _get_viewable_asset(asset_id, db, current_user)
+    asset = _get_viewable_asset(asset_id, db, current_user)
+    _attach_social([asset], db, current_user)
+    return asset
 
 
 @router.patch("/{asset_id}", response_model=AssetRead)

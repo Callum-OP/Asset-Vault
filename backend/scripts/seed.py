@@ -30,7 +30,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
 from app.core.security import hash_password
-from app.models import Asset, Category, Folder, Tag, User
+from app.models import Asset, AssetLike, Category, Comment, Folder, Tag, User
 from app.services import media
 from app.services.storage import get_storage
 
@@ -155,17 +155,29 @@ def seed(db: Session) -> None:
     _make_asset(db, demo, "unfiled-gray.png", (130, 130, 130))
 
     # Friend's public assets — these appear under the demo user's "Others' assets".
-    _make_asset(db, friend, "shared-purple.png", (150, 70, 190),
-                rating=5, is_public=True)
-    _make_asset(db, friend, "shared-teal.png", (40, 170, 170),
-                rating=4, is_public=True)
+    purple = _make_asset(db, friend, "shared-purple.png", (150, 70, 190),
+                         rating=5, is_public=True)
+    teal = _make_asset(db, friend, "shared-teal.png", (40, 170, 170),
+                       rating=4, is_public=True)
     # ...and one private asset that must NOT be visible to the demo user.
     _make_asset(db, friend, "friend-secret.png", (20, 20, 20))
+    db.flush()
+
+    # Social activity on the public assets: likes + comments across both users.
+    db.add_all([
+        AssetLike(asset_id=purple.id, user_id=demo.id),
+        AssetLike(asset_id=teal.id, user_id=demo.id),
+        AssetLike(asset_id=purple.id, user_id=friend.id),  # you can like your own
+        Comment(asset_id=purple.id, user_id=demo.id, body="Gorgeous colour — love this!"),
+        Comment(asset_id=purple.id, user_id=friend.id, body="Thanks! More coming soon."),
+        Comment(asset_id=teal.id, user_id=demo.id, body="Would pair well with the forest set."),
+    ])
 
     db.commit()
     print("Seeded demo data:")
     print(f"  {DEMO_EMAIL} / {DEMO_PASSWORD}  (5 private assets, folders, tags)")
     print(f"  {FRIEND_EMAIL} / {FRIEND_PASSWORD}  (2 public + 1 private asset)")
+    print("  + likes & comments on the public assets to demo the social layer")
 
 
 def main() -> None:

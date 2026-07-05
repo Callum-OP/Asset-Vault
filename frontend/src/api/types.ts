@@ -44,6 +44,23 @@ export interface Asset {
   tags: Tag[]
   created_at: string
   updated_at: string
+  like_count: number
+  comment_count: number
+  liked_by_me: boolean
+}
+
+export interface Comment {
+  id: number
+  asset_id: number
+  user_id: number
+  author_name: string
+  body: string
+  created_at: string
+}
+
+export interface LikeStatus {
+  liked_by_me: boolean
+  like_count: number
 }
 
 export interface AssetList {

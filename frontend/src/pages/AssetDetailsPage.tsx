@@ -17,6 +17,7 @@ import { folderPath } from '../api/folderTree'
 import { createCategory, createTag, listCategories, listTags } from '../api/taxonomy'
 import { useAuth } from '../auth/AuthContext'
 import { AssetPreview } from '../components/AssetPreview'
+import { AssetSocial } from '../components/AssetSocial'
 import { RatingStars } from '../components/RatingStars'
 
 function humanSize(bytes: number): string {
@@ -403,6 +404,8 @@ export function AssetDetailsPage() {
           )}
         </div>
       </div>
+
+      {asset.is_public && <AssetSocial asset={asset} currentUserId={user?.id ?? null} />}
     </div>
   )
 }

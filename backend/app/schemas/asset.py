@@ -37,6 +37,12 @@ class AssetRead(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+    # Social metrics — populated by the API on display endpoints; default to
+    # empty for endpoints that don't compute them (e.g. right after an edit).
+    like_count: int = 0
+    comment_count: int = 0
+    liked_by_me: bool = False
+
 
 class AssetUpdate(BaseModel):
     """Editable fields. Only keys present in the request body are applied."""

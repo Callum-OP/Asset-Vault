@@ -25,6 +25,9 @@ export function makeAsset(overrides: Partial<Asset> = {}): Asset {
     tags: [],
     created_at: '2026-07-03T00:00:00Z',
     updated_at: '2026-07-03T00:00:00Z',
+    like_count: 0,
+    comment_count: 0,
+    liked_by_me: false,
     ...overrides,
   }
 }

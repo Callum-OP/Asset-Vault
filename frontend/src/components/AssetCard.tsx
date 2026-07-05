@@ -81,6 +81,19 @@ export function AssetCard({ asset }: { asset: Asset }) {
             ))}
           </div>
         )}
+        {(asset.like_count > 0 || asset.comment_count > 0) && (
+          <div className="flex items-center gap-3 text-xs text-muted">
+            <span className="flex items-center gap-1">
+              <span className={asset.liked_by_me ? 'text-red-400' : ''}>
+                {asset.liked_by_me ? '❤️' : '🤍'}
+              </span>
+              {asset.like_count}
+            </span>
+            {asset.comment_count > 0 && (
+              <span className="flex items-center gap-1">💬 {asset.comment_count}</span>
+            )}
+          </div>
+        )}
       </div>
     </Link>
   )

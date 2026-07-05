@@ -13,7 +13,9 @@ from app.core.database import Base
 if TYPE_CHECKING:
     from app.models.asset import Asset
     from app.models.category import Category
+    from app.models.comment import Comment
     from app.models.folder import Folder
+    from app.models.like import AssetLike
     from app.models.tag import Tag
 
 
@@ -51,4 +53,10 @@ class User(Base):
     )
     tags: Mapped[list["Tag"]] = relationship(
         back_populates="owner", cascade="all, delete-orphan"
+    )
+    likes: Mapped[list["AssetLike"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan", passive_deletes=True
+    )
+    comments: Mapped[list["Comment"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan", passive_deletes=True
     )

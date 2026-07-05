@@ -15,7 +15,9 @@ from app.models.associations import asset_tags
 
 if TYPE_CHECKING:
     from app.models.category import Category
+    from app.models.comment import Comment
     from app.models.folder import Folder
+    from app.models.like import AssetLike
     from app.models.tag import Tag
     from app.models.user import User
 
@@ -84,3 +86,9 @@ class Asset(Base):
     category: Mapped["Category | None"] = relationship(back_populates="assets")
     folder: Mapped["Folder | None"] = relationship(back_populates="assets")
     tags: Mapped[list["Tag"]] = relationship(secondary=asset_tags, back_populates="assets")
+    likes: Mapped[list["AssetLike"]] = relationship(
+        back_populates="asset", cascade="all, delete-orphan", passive_deletes=True
+    )
+    comments: Mapped[list["Comment"]] = relationship(
+        back_populates="asset", cascade="all, delete-orphan", passive_deletes=True
+    )

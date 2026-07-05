@@ -131,6 +131,18 @@ usual folders and **Unfiled**), while **Others' assets** lists every public
 asset — those shared by other users *and* your own public ones, so you can
 confirm an asset actually went public. Your private assets never appear there.
 
+### Likes & comments
+Public assets have a lightweight social layer (Pinterest-style):
+- Any signed-in user can **like** a public asset (including their own) — the
+  like count and a filled/outline heart show on the card and details page.
+- Any signed-in user can **comment** on a public asset. Comments show the
+  author's display name (never their raw email).
+- A comment can be deleted by **its author** or by the **asset's owner**
+  (basic moderation).
+- Likes and comments are only available while an asset is public; making an
+  asset private again hides them (the data is kept and reappears if it's made
+  public later).
+
 ## Notes
 - **3D models & videos:** dominant colours are extracted from the preview
   snapshot the browser captures (the same colour analysis used for image
