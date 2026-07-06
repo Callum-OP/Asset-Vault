@@ -30,22 +30,27 @@ export function LoginPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center px-4">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(40rem 30rem at 50% -20%, rgba(244,185,66,0.12), transparent 60%)',
-        }}
-      />
-      <div className="surface relative w-full max-w-sm p-8 shadow-[var(--shadow-panel)]">
-        <div className="mb-6">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4">
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+        <div
+          className="animate-float absolute -left-20 top-10 h-96 w-96 rounded-full opacity-60 blur-3xl"
+          style={{ background: 'radial-gradient(circle, rgba(255,92,157,0.4), transparent 70%)' }}
+        />
+        <div
+          className="animate-float absolute -right-16 bottom-0 h-[26rem] w-[26rem] rounded-full opacity-50 blur-3xl"
+          style={{
+            background: 'radial-gradient(circle, rgba(154,107,255,0.38), transparent 70%)',
+            animationDelay: '-4s',
+          }}
+        />
+      </div>
+      <div className="surface pop-in relative w-full max-w-md p-10 shadow-[var(--shadow-glow)]">
+        <div className="mb-8">
           <Wordmark size="lg" />
-          <p className="mt-3 text-sm text-muted">Sign in to your vault.</p>
+          <p className="mt-4 text-lg text-muted">Sign in to your vault.</p>
         </div>
 
-        <form onSubmit={onSubmit} className="space-y-3">
+        <form onSubmit={onSubmit} className="space-y-4">
           <input
             type="email"
             required
@@ -62,7 +67,7 @@ export function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             className="input"
           />
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-base text-red-500">{error}</p>}
           <button
             type="submit"
             disabled={busy || !email.trim() || !password}
@@ -83,9 +88,9 @@ export function LoginPage() {
           </div>
         )}
 
-        <p className="mt-6 text-center text-sm text-muted">
+        <p className="mt-8 text-center text-base text-muted">
           No account?{' '}
-          <Link to="/register" className="font-medium text-accent hover:text-accent-hover">
+          <Link to="/register" className="font-semibold text-accent hover:text-accent-hover">
             Create one
           </Link>
         </p>

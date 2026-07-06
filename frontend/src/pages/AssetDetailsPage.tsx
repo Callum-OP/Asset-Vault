@@ -108,8 +108,8 @@ export function AssetDetailsPage() {
     onSuccess: invalidateAsset,
   })
 
-  if (isLoading) return <p className="text-sm text-muted">Loading…</p>
-  if (isError || !asset) return <p className="text-sm text-red-400">Asset not found.</p>
+  if (isLoading) return <p className="text-base text-muted">Loading…</p>
+  if (isError || !asset) return <p className="text-base text-red-500">Asset not found.</p>
 
   const isOwner = !!user && asset.owner_id === user.id
 
@@ -133,7 +133,10 @@ export function AssetDetailsPage() {
 
   return (
     <div className="space-y-6">
-      <Link to="/" className="text-sm text-muted transition hover:text-fg">
+      <Link
+        to="/"
+        className="inline-flex items-center gap-1 text-base font-medium text-muted transition hover:-translate-x-0.5 hover:text-accent"
+      >
         ← Back to gallery
       </Link>
 
@@ -168,8 +171,10 @@ export function AssetDetailsPage() {
                 </span>
               )}
             </div>
-            <h1 className="break-words text-xl font-semibold text-fg">{asset.original_filename}</h1>
-            <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm text-fg">
+            <h1 className="break-words text-3xl font-extrabold tracking-tight text-fg">
+              {asset.original_filename}
+            </h1>
+            <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 text-base text-fg">
               <dt className="text-subtle">Type</dt>
               <dd>{asset.asset_type}</dd>
               <dt className="text-subtle">Size</dt>
@@ -194,7 +199,7 @@ export function AssetDetailsPage() {
                 {asset.dominant_colors.map((color, i) => (
                   <span
                     key={`${color}-${i}`}
-                    className="h-8 w-8 rounded-md ring-1 ring-white/10"
+                    className="h-9 w-9 rounded-xl ring-1 ring-black/5"
                     style={{ backgroundColor: color }}
                     title={color}
                   />

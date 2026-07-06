@@ -1,35 +1,42 @@
 @import 'tailwindcss';
 
 /* ── Design tokens ─────────────────────────────────────────────────────
-   Dark Studio theme: a near-black charcoal canvas with layered glassy
-   surfaces and a warm amber/gold accent. Tailwind v4 turns each --color-*
-   token into utilities (bg-canvas, text-muted, border-border, bg-accent…).
+   "Sugar Gallery" theme: a soft cotton-candy light canvas, crisp white
+   surfaces, a deep-plum ink, and a playful candy palette (pink → grape →
+   mint → peach). Tailwind v4 turns each --color-* token into utilities
+   (bg-canvas, text-muted, border-border, bg-accent, from-grape, text-mint…).
 */
 @theme {
-  --color-canvas: #0a0b0d;
-  --color-surface: #131519;
-  --color-surface-2: #1a1d23;
-  --color-surface-3: #23272e;
-  --color-border: #262a31;
-  --color-border-strong: #363b44;
+  --color-canvas: #fdf5fb;
+  --color-surface: #ffffff;
+  --color-surface-2: #fbf0f7;
+  --color-surface-3: #f5e4ef;
+  --color-border: #f1dfec;
+  --color-border-strong: #e7cbe0;
 
-  --color-fg: #f3f4f6;
-  --color-muted: #9aa1ac;
-  --color-subtle: #6b727c;
+  --color-fg: #3a2440;
+  --color-muted: #8a6d88;
+  --color-subtle: #b6a1b6;
 
-  --color-accent: #f4b942;
-  --color-accent-hover: #ffcb5e;
-  --color-accent-contrast: #1b1305;
+  /* Primary candy accent + supporting scoops of colour. */
+  --color-accent: #ff5c9d;
+  --color-accent-hover: #ff79b0;
+  --color-accent-contrast: #ffffff;
+  --color-grape: #9a6bff;
+  --color-mint: #35d6bf;
+  --color-peach: #ffb057;
+  --color-sky: #59c3ff;
 
-  --radius-lg: 0.625rem;
-  --radius-xl: 0.875rem;
-  --radius-2xl: 1.125rem;
+  /* Chunky, pillowy corners. */
+  --radius-lg: 0.9rem;
+  --radius-xl: 1.2rem;
+  --radius-2xl: 1.75rem;
 
   --font-sans: 'Inter var', 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
 
-  /* Elevation + accent glow, tuned for a dark canvas. */
-  --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
-  --shadow-glow: 0 0 0 1px rgba(244, 185, 66, 0.25), 0 10px 34px -14px rgba(244, 185, 66, 0.35);
+  /* Soft, colourful elevation + a candy glow. */
+  --shadow-panel: 0 2px 6px rgba(154, 107, 255, 0.05), 0 16px 40px -18px rgba(255, 92, 157, 0.28);
+  --shadow-glow: 0 0 0 1px rgba(255, 92, 157, 0.22), 0 22px 50px -18px rgba(255, 92, 157, 0.5);
 }
 
 @layer base {
@@ -44,76 +51,165 @@
     background-color: var(--color-canvas);
     color: var(--color-fg);
     font-family: var(--font-sans);
-    color-scheme: dark;
+    color-scheme: light;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
 
   ::selection {
-    background: rgba(244, 185, 66, 0.28);
+    background: rgba(255, 92, 157, 0.25);
     color: var(--color-fg);
   }
 
-  /* Keyboard focus rings in the accent, everywhere. */
+  /* Keyboard focus rings in the candy accent, everywhere. */
   :focus-visible {
     outline: 2px solid var(--color-accent);
     outline-offset: 2px;
   }
 
-  /* Slim dark scrollbars so panels feel native to the theme. */
+  /* Rounded pastel scrollbars so panels feel native to the theme. */
   * {
     scrollbar-width: thin;
     scrollbar-color: var(--color-border-strong) transparent;
   }
   *::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 12px;
+    height: 12px;
   }
   *::-webkit-scrollbar-thumb {
     background-color: var(--color-border-strong);
     border-radius: 9999px;
-    border: 2px solid transparent;
+    border: 3px solid transparent;
     background-clip: content-box;
   }
 }
 
 /* ── Reusable component classes ────────────────────────────────────────
    Shared primitives so every button / input / surface stays consistent.
+   Sized generously (base text, roomy padding, pill/rounded shapes) so the
+   whole UI reads big and clear.
 */
 @layer components {
   .surface {
-    @apply rounded-xl border border-border bg-surface;
+    @apply rounded-2xl border border-border bg-surface;
   }
 
   .input {
-    @apply w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-fg;
+    @apply w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-base text-fg;
     @apply placeholder:text-subtle transition;
-    @apply focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25;
+    @apply focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/20;
   }
 
-  /* Native <select>; OS dropdown list renders dark via color-scheme: dark. */
+  /* Native <select>; OS dropdown list renders light via color-scheme: light. */
   .select {
-    @apply cursor-pointer rounded-lg border border-border bg-surface-2 px-2 py-1.5 text-sm text-fg transition;
-    @apply focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25;
+    @apply cursor-pointer rounded-xl border border-border bg-surface px-3.5 py-2.5 text-base text-fg transition;
+    @apply focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/20;
   }
 
-  /* Base button; combine with a variant in markup, e.g. class="btn btn-accent". */
+  /* Base button; combine with a variant in markup, e.g. class="btn btn-accent".
+     Pill-shaped with a springy press for a playful feel. */
   .btn {
-    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg px-3 py-2;
-    @apply text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-full px-5 py-2.5;
+    @apply text-base font-semibold transition duration-200 ease-out;
+    @apply active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100;
   }
   .btn-accent {
-    @apply bg-accent text-accent-contrast hover:bg-accent-hover;
-    @apply shadow-[0_6px_20px_-8px_rgba(244,185,66,0.6)];
+    @apply bg-gradient-to-r from-accent to-grape text-accent-contrast;
+    @apply shadow-[0_10px_26px_-10px_rgba(255,92,157,0.75)] hover:brightness-105 hover:-translate-y-0.5;
   }
   .btn-ghost {
-    @apply border border-border bg-surface-2 text-fg hover:border-border-strong hover:bg-surface-3;
+    @apply border border-border bg-surface text-fg;
+    @apply hover:border-border-strong hover:-translate-y-0.5 hover:shadow-[var(--shadow-panel)];
   }
   .btn-danger {
-    @apply border border-red-500/40 text-red-400 hover:bg-red-500/10;
+    @apply border border-red-300 bg-red-50 text-red-500 hover:bg-red-100;
   }
 
   .chip {
-    @apply cursor-pointer rounded-full px-3 py-1 text-sm transition;
+    @apply cursor-pointer rounded-full px-4 py-1.5 text-sm font-medium transition duration-200 active:scale-95;
+  }
+
+  /* Multi-scoop gradient text for headings and the wordmark. */
+  .text-gradient {
+    @apply bg-gradient-to-r from-accent via-grape to-sky bg-clip-text text-transparent;
+  }
+}
+
+/* ── Motion ────────────────────────────────────────────────────────────
+   Gentle, non-distracting animation. Everything below is disabled for
+   users who prefer reduced motion.
+*/
+@layer utilities {
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-18px);
+    }
+  }
+  @keyframes pop-in {
+    0% {
+      opacity: 0;
+      transform: translateY(14px) scale(0.96);
+    }
+    100% {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes fade-up {
+    0% {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    100% {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes shimmer {
+    to {
+      background-position: 200% center;
+    }
+  }
+
+  /* Slow-drifting decorative blobs behind the content. */
+  .animate-float {
+    animation: float 9s ease-in-out infinite;
+  }
+  /* Cards / tiles springing into place; pair with an inline animation-delay. */
+  .pop-in {
+    animation: pop-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .fade-up {
+    animation: fade-up 0.45s ease-out both;
+  }
+  /* Animated candy gradient for the brand lockup. */
+  .shimmer-text {
+    background-image: linear-gradient(
+      100deg,
+      var(--color-accent),
+      var(--color-grape),
+      var(--color-sky),
+      var(--color-accent)
+    );
+    background-size: 200% auto;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    animation: shimmer 6s linear infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }

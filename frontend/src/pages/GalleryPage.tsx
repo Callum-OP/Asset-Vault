@@ -133,20 +133,20 @@ export function GalleryPage() {
         <div className="flex items-end justify-between">
           <div>
             <div className="flex items-center gap-1 text-sm text-muted">
-              <button className="transition hover:text-fg" onClick={() => setSelection('all')}>
+              <button className="transition hover:text-accent" onClick={() => setSelection('all')}>
                 All
               </button>
               {crumbs.map((c) => (
                 <span key={c.id} className="flex items-center gap-1">
                   <span className="text-subtle">/</span>
-                  <button className="transition hover:text-fg" onClick={() => setSelection(c.id)}>
+                  <button className="transition hover:text-accent" onClick={() => setSelection(c.id)}>
                     {c.name}
                   </button>
                 </span>
               ))}
             </div>
-            <h1 className="text-2xl font-semibold tracking-tight text-fg">{heading}</h1>
-            <p className="text-sm text-muted">
+            <h1 className="text-4xl font-extrabold tracking-tight text-gradient">{heading}</h1>
+            <p className="mt-1 text-base text-muted">
               {isPublicView
                 ? `${data ? data.total : 0} public item(s) · shared by you and other users`
                 : data
@@ -156,7 +156,7 @@ export function GalleryPage() {
           </div>
 
           {typeof selection === 'number' && (
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-muted">
+            <label className="flex cursor-pointer items-center gap-2 text-base text-muted">
               <input
                 type="checkbox"
                 checked={includeSubfolders}
@@ -172,7 +172,7 @@ export function GalleryPage() {
           <>
             <UploadDropzone onFiles={handleFiles} busy={upload.isPending} />
             {upload.isError && (
-              <p className="text-sm text-red-400">
+              <p className="text-sm text-red-500">
                 Some files could not be uploaded (unsupported type or too large).
               </p>
             )}
@@ -187,11 +187,11 @@ export function GalleryPage() {
           tags={tags ?? []}
         />
 
-        {isLoading && <p className="text-sm text-muted">Loading assets…</p>}
-        {isError && <p className="text-sm text-red-400">Could not load your assets.</p>}
+        {isLoading && <p className="text-base text-muted">Loading assets…</p>}
+        {isError && <p className="text-base text-red-500">Could not load your assets.</p>}
 
         {!isLoading && !isError && assets.length === 0 && (
-          <div className="rounded-xl border border-dashed border-border bg-surface/40 py-16 text-center text-muted">
+          <div className="fade-up rounded-2xl border-2 border-dashed border-border bg-surface/60 py-20 text-center text-base text-muted">
             {filtersActive ? (
               <>
                 No assets match your filters.{' '}
@@ -210,9 +210,9 @@ export function GalleryPage() {
         )}
 
         {assets.length > 0 && (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-            {assets.map((asset) => (
-              <AssetCard key={asset.id} asset={asset} />
+          <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+            {assets.map((asset, i) => (
+              <AssetCard key={asset.id} asset={asset} index={i} />
             ))}
           </div>
         )}

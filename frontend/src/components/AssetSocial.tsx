@@ -99,7 +99,7 @@ export function AssetSocial({ asset, currentUserId }: Props) {
                 <button
                   onClick={() => removeComment.mutate(comment.id)}
                   aria-label="Delete comment"
-                  className="text-xs text-subtle opacity-0 transition hover:text-red-400 group-hover:opacity-100"
+                  className="text-xs text-subtle opacity-0 transition hover:text-red-500 group-hover:opacity-100"
                 >
                   ×
                 </button>
@@ -173,9 +173,9 @@ export function AssetSocial({ asset, currentUserId }: Props) {
           onClick={() => toggleLike.mutate()}
           disabled={toggleLike.isPending}
           aria-pressed={asset.liked_by_me}
-          className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition ${
+          className={`flex items-center gap-2 rounded-full border px-4 py-2 text-base font-medium transition active:scale-95 ${
             asset.liked_by_me
-              ? 'border-red-400/40 bg-red-400/10 text-red-300'
+              ? 'border-accent/40 bg-accent/10 text-accent'
               : 'border-border text-muted hover:border-border-strong hover:text-fg'
           }`}
         >

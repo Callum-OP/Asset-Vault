@@ -16,8 +16,8 @@ interface FolderSidebarProps {
 }
 
 const ROW_BASE =
-  'group flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm cursor-pointer select-none transition'
-const ROW_ACTIVE = 'bg-accent/15 text-accent'
+  'group flex items-center gap-1.5 rounded-xl px-3 py-2 text-base cursor-pointer select-none transition duration-200'
+const ROW_ACTIVE = 'bg-gradient-to-r from-accent/15 to-grape/15 font-semibold text-accent'
 const ROW_IDLE = 'text-muted hover:bg-surface-2 hover:text-fg'
 
 export function FolderSidebar({
@@ -49,13 +49,13 @@ export function FolderSidebar({
   }
 
   return (
-    <nav className="w-56 shrink-0 space-y-3">
+    <nav className="w-64 shrink-0 space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-subtle">Folders</h2>
+        <h2 className="text-xs font-bold uppercase tracking-widest text-subtle">Folders</h2>
         <button
           type="button"
           onClick={() => promptCreate(null)}
-          className="rounded-md border border-border px-2 py-0.5 text-xs text-muted transition hover:border-border-strong hover:text-fg"
+          className="rounded-full border border-border px-3 py-1 text-sm font-medium text-muted transition hover:border-accent/50 hover:text-accent"
         >
           + New
         </button>
