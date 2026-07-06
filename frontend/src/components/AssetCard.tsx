@@ -57,7 +57,7 @@ export function AssetCard({ asset, index = 0 }: { asset: Asset; index?: number }
       </div>
 
       <div className="space-y-2.5 p-4">
-        <p className="truncate text-base font-semibold text-fg" title={asset.original_filename}>
+        <p className="truncate text-lg font-semibold text-fg" title={asset.original_filename}>
           {asset.original_filename}
         </p>
         {asset.dominant_colors && asset.dominant_colors.length > 0 && (

@@ -95,22 +95,22 @@
   }
 
   .input {
-    @apply w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-base text-fg;
+    @apply w-full rounded-xl border border-border bg-surface px-5 py-3 text-lg text-fg;
     @apply placeholder:text-subtle transition;
     @apply focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/20;
   }
 
   /* Native <select>; OS dropdown list renders light via color-scheme: light. */
   .select {
-    @apply cursor-pointer rounded-xl border border-border bg-surface px-3.5 py-2.5 text-base text-fg transition;
+    @apply cursor-pointer rounded-xl border border-border bg-surface px-4 py-3 text-lg text-fg transition;
     @apply focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/20;
   }
 
   /* Base button; combine with a variant in markup, e.g. class="btn btn-accent".
      Pill-shaped with a springy press for a playful feel. */
   .btn {
-    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-full px-5 py-2.5;
-    @apply text-base font-semibold transition duration-200 ease-out;
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-full px-7 py-3;
+    @apply text-lg font-semibold transition duration-200 ease-out;
     @apply active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100;
   }
   .btn-accent {
@@ -126,7 +126,7 @@
   }
 
   .chip {
-    @apply cursor-pointer rounded-full px-4 py-1.5 text-sm font-medium transition duration-200 active:scale-95;
+    @apply cursor-pointer rounded-full px-5 py-2 text-base font-medium transition duration-200 active:scale-95;
   }
 
   /* Multi-scoop gradient text for headings and the wordmark. */

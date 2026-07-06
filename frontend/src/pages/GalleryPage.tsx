@@ -119,7 +119,7 @@ export function GalleryPage() {
           : crumbs.at(-1)?.name
 
   return (
-    <div className="flex gap-8">
+    <div className="flex gap-10">
       <FolderSidebar
         tree={tree}
         selection={selection}
@@ -145,8 +145,8 @@ export function GalleryPage() {
                 </span>
               ))}
             </div>
-            <h1 className="text-4xl font-extrabold tracking-tight text-gradient">{heading}</h1>
-            <p className="mt-1 text-base text-muted">
+            <h1 className="text-5xl font-extrabold tracking-tight text-gradient">{heading}</h1>
+            <p className="mt-2 text-lg text-muted">
               {isPublicView
                 ? `${data ? data.total : 0} public item(s) · shared by you and other users`
                 : data
@@ -210,7 +210,7 @@ export function GalleryPage() {
         )}
 
         {assets.length > 0 && (
-          <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+          <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 min-[1800px]:grid-cols-7 min-[2200px]:grid-cols-8">
             {assets.map((asset, i) => (
               <AssetCard key={asset.id} asset={asset} index={i} />
             ))}

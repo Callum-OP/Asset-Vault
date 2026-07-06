@@ -31,16 +31,16 @@ export function Layout() {
       </div>
 
       <header className="sticky top-0 z-20 border-b border-border/60 bg-canvas/70 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-4 sm:px-10">
+        <div className="flex w-full items-center justify-between px-6 py-5 sm:px-10 xl:px-16">
           <Link to="/" className="transition-transform duration-200 hover:-translate-y-0.5 hover:scale-[1.02]">
             <Wordmark />
           </Link>
-          <div className="flex items-center gap-4 text-base">
+          <div className="flex items-center gap-5 text-lg">
             {user?.avatar_url && (
               <img
                 src={user.avatar_url}
                 alt=""
-                className="h-9 w-9 rounded-full ring-2 ring-accent/30"
+                className="h-10 w-10 rounded-full ring-2 ring-accent/30"
               />
             )}
             <span className="hidden font-medium text-muted sm:inline">
@@ -53,7 +53,7 @@ export function Layout() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1600px] px-6 py-10 sm:px-10">
+      <main className="w-full px-6 py-10 sm:px-10 xl:px-16">
         <Outlet />
       </main>
     </div>
