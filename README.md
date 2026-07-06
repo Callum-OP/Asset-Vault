@@ -67,7 +67,25 @@ npm run dev                   # http://localhost:5173
 cd frontend
 npm run build                 # type-check + production build
 npm test                      # Vitest component smoke tests
+npm run test:e2e              # Playwright end-to-end tests
 ```
+
+**End-to-end (Playwright).** Tests live in `frontend/e2e/` and drive a real
+browser against the Vite dev server (started automatically). There are two
+suites:
+- **`e2e/mocked/`** — the network is stubbed with `page.route`, so these need
+  **no backend** and always run. They cover auth (login/register validation,
+  success, error, redirects, logout) and the gallery (asset cards, empty state,
+  search, type filters).
+- **`e2e/live/`** — smoke tests against the **real backend + seeded Postgres**.
+  Each test *skips itself* when the backend isn't reachable, so `npm run test:e2e`
+  stays green with just the frontend up. To run them for real, start the backend
+  and seed the demo data (see above), then run `npm run test:e2e`.
+
+First-time setup installs the browser binary (already done if you ran the repo
+setup): `npm run test:e2e:ui` opens Playwright's interactive UI mode.
+> On this machine, Playwright's browser download also needs the system CA:
+> `$env:NODE_OPTIONS="--use-system-ca"; npx playwright install chromium`.
 
 ## Environment notes (this machine)
 - **System TLS certificates:** package registries are behind a custom root CA.
