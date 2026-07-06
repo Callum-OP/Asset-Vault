@@ -1,6 +1,9 @@
 import { Link } from 'react-router-dom'
 
 import type { Asset } from '../api/types'
+// MIME-ish key used to carry an asset id between a dragged card and a folder
+// drop target. Kept in sync with FolderSidebar.
+export const ASSET_DND_MIME = 'application/x-asset-id'
 
 const TYPE_LABELS: Record<Asset['asset_type'], string> = {
   image: 'Image',
@@ -11,14 +14,34 @@ const TYPE_LABELS: Record<Asset['asset_type'], string> = {
   other: 'File',
 }
 
-export function AssetCard({ asset, index = 0 }: { asset: Asset; index?: number }) {
+export function AssetCard({
+  asset,
+  index = 0,
+  draggable = false,
+}: {
+  asset: Asset
+  index?: number
+  // When true, the card can be dragged onto a sidebar folder to re-file it.
+  draggable?: boolean
+}) {
   const thumbnailUrl = asset.thumbnail_path ? `/storage/${asset.thumbnail_path}` : null
 
   return (
     <Link
       to={`/assets/${asset.id}`}
+      draggable={draggable}
+      onDragStart={
+        draggable
+          ? (e) => {
+              e.dataTransfer.setData(ASSET_DND_MIME, String(asset.id))
+              e.dataTransfer.effectAllowed = 'move'
+            }
+          : undefined
+      }
       // Springy entrance, staggered by grid position; lifts and tilts a touch on hover.
-      className="group pop-in block overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-panel)] transition duration-300 ease-out hover:-translate-y-1.5 hover:rotate-[-0.6deg] hover:border-accent/50 hover:shadow-[var(--shadow-glow)]"
+      className={`group pop-in block overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-panel)] transition duration-300 ease-out hover:-translate-y-1.5 hover:rotate-[-0.6deg] hover:border-accent/50 hover:shadow-[var(--shadow-glow)] ${
+        draggable ? 'cursor-grab active:cursor-grabbing' : ''
+      }`}
       style={{ animationDelay: `${Math.min(index, 16) * 45}ms` }}
     >
       <div className="relative flex aspect-square items-center justify-center overflow-hidden bg-gradient-to-br from-surface-2 to-surface-3">

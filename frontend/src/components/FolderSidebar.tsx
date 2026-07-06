@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import type { DragEvent, HTMLAttributes } from 'react'
 
 import type { FolderNode } from '../api/folderTree'
 import type { FolderWithCount } from '../api/types'
+import { ASSET_DND_MIME } from './AssetCard'
 
 /** What the gallery is currently showing. */
 export type FolderSelection = 'all' | 'unfiled' | 'public' | number
@@ -13,12 +15,22 @@ interface FolderSidebarProps {
   onCreate: (name: string, parentId: number | null) => void
   onRename: (id: number, name: string) => void
   onDelete: (folder: FolderWithCount) => void
+  // Re-file a dragged asset. folderId is null for "Unfiled".
+  onMoveAsset?: (assetId: number, folderId: number | null) => void
 }
 
 const ROW_BASE =
   'group flex items-center gap-1.5 rounded-xl px-3 py-2 text-base cursor-pointer select-none transition duration-200'
 const ROW_ACTIVE = 'bg-gradient-to-r from-accent/15 to-grape/15 font-semibold text-accent'
 const ROW_IDLE = 'text-muted hover:bg-surface-2 hover:text-fg'
+// Applied to a folder row while an asset is hovering over it, ready to drop.
+const ROW_DROP = 'ring-2 ring-inset ring-accent bg-accent/10 text-accent'
+
+/** Handlers + hover flag for a folder that accepts dropped assets. */
+export interface DropTarget {
+  isOver: boolean
+  dropProps: Pick<HTMLAttributes<HTMLDivElement>, 'onDragOver' | 'onDragLeave' | 'onDrop'>
+}
 
 export function FolderSidebar({
   tree,
@@ -27,8 +39,10 @@ export function FolderSidebar({
   onCreate,
   onRename,
   onDelete,
+  onMoveAsset,
 }: FolderSidebarProps) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
+  const [dragOverKey, setDragOverKey] = useState<string | null>(null)
 
   const toggle = (id: number) =>
     setExpanded((prev) => {
@@ -47,6 +61,32 @@ export function FolderSidebar({
       onCreate(name, parentId)
     }
   }
+
+  // Build drop-target behaviour for one row. No-op when dragging isn't enabled.
+  function dropTarget(key: string, folderId: number | null): DropTarget {
+    if (!onMoveAsset) return { isOver: false, dropProps: {} }
+    return {
+      isOver: dragOverKey === key,
+      dropProps: {
+        onDragOver: (e: DragEvent<HTMLDivElement>) => {
+          if (!e.dataTransfer.types.includes(ASSET_DND_MIME)) return
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'move'
+          if (dragOverKey !== key) setDragOverKey(key)
+        },
+        onDragLeave: () => setDragOverKey((k) => (k === key ? null : k)),
+        onDrop: (e: DragEvent<HTMLDivElement>) => {
+          const raw = e.dataTransfer.getData(ASSET_DND_MIME)
+          setDragOverKey(null)
+          if (!raw) return
+          e.preventDefault()
+          onMoveAsset(Number(raw), folderId)
+        },
+      },
+    }
+  }
+
+  const unfiledDrop = dropTarget('unfiled', null)
 
   return (
     <nav className="w-64 shrink-0 space-y-4">
@@ -82,8 +122,11 @@ export function FolderSidebar({
         </li>
         <li>
           <div
-            className={`${ROW_BASE} ${selection === 'unfiled' ? ROW_ACTIVE : ROW_IDLE}`}
+            className={`${ROW_BASE} ${
+              unfiledDrop.isOver ? ROW_DROP : selection === 'unfiled' ? ROW_ACTIVE : ROW_IDLE
+            }`}
             onClick={() => onSelect('unfiled')}
+            {...unfiledDrop.dropProps}
           >
             <span className="w-3" />
             <span>📥 Unfiled</span>
@@ -105,6 +148,7 @@ export function FolderSidebar({
               onAddChild={promptCreate}
               onRename={onRename}
               onDelete={onDelete}
+              dropTarget={dropTarget}
             />
           ))}
         </ul>
@@ -123,6 +167,7 @@ interface FolderTreeNodeProps {
   onAddChild: (parentId: number) => void
   onRename: (id: number, name: string) => void
   onDelete: (folder: FolderWithCount) => void
+  dropTarget: (key: string, folderId: number | null) => DropTarget
 }
 
 function FolderTreeNode({
@@ -135,17 +180,20 @@ function FolderTreeNode({
   onAddChild,
   onRename,
   onDelete,
+  dropTarget,
 }: FolderTreeNodeProps) {
   const hasChildren = node.children.length > 0
   const open = expanded.has(node.id)
   const active = selection === node.id
+  const { isOver, dropProps } = dropTarget(`f${node.id}`, node.id)
 
   return (
     <li>
       <div
-        className={`${ROW_BASE} ${active ? ROW_ACTIVE : ROW_IDLE}`}
+        className={`${ROW_BASE} ${isOver ? ROW_DROP : active ? ROW_ACTIVE : ROW_IDLE}`}
         style={{ paddingLeft: `${depth * 14 + 8}px` }}
         onClick={() => onSelect(node.id)}
+        {...dropProps}
       >
         <button
           type="button"
@@ -194,6 +242,7 @@ function FolderTreeNode({
               onAddChild={onAddChild}
               onRename={onRename}
               onDelete={onDelete}
+              dropTarget={dropTarget}
             />
           ))}
         </ul>

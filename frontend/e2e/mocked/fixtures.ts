@@ -46,8 +46,16 @@ function json(route: Route, body: unknown, status = 200) {
   return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
 }
 
+export interface MockFolder {
+  id: number
+  name: string
+  parent_id: number | null
+  asset_count: number
+}
+
 interface MockOptions {
   assets?: ReturnType<typeof makeAsset>[]
+  folders?: MockFolder[]
   user?: typeof DEMO_USER
   // When set, /auth/login returns 401 so we can exercise the error path.
   loginFails?: boolean
@@ -80,7 +88,7 @@ export async function mockApi(page: Page, opts: MockOptions = {}) {
     json(route, { items: assets, total: assets.length, limit: 100, offset: 0 }),
   )
 
-  await page.route('**/folders', (route) => json(route, []))
+  await page.route('**/folders', (route) => json(route, opts.folders ?? []))
   await page.route('**/categories', (route) => json(route, []))
   await page.route('**/tags', (route) => json(route, []))
 

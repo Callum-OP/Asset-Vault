@@ -91,6 +91,13 @@ export function GalleryPage() {
     onSuccess: invalidate,
   })
 
+  // Drag an asset card onto a sidebar folder (or "Unfiled") to re-file it.
+  const moveAsset = useMutation({
+    mutationFn: ({ assetId, folderId }: { assetId: number; folderId: number | null }) =>
+      updateAsset(assetId, { folder_id: folderId }),
+    onSuccess: invalidate,
+  })
+
   function handleFiles(files: File[]) {
     files.forEach((file) => upload.mutate(file))
   }
@@ -127,6 +134,7 @@ export function GalleryPage() {
         onCreate={(name, parentId) => createFolderMutation.mutate({ name, parentId })}
         onRename={(id, name) => renameFolderMutation.mutate({ id, name })}
         onDelete={handleDeleteFolder}
+        onMoveAsset={(assetId, folderId) => moveAsset.mutate({ assetId, folderId })}
       />
 
       <div className="min-w-0 flex-1 space-y-6">
@@ -209,12 +217,23 @@ export function GalleryPage() {
           </div>
         )}
 
+        {moveAsset.isError && (
+          <p className="text-sm text-red-500">Could not move that asset. Please try again.</p>
+        )}
+
         {assets.length > 0 && (
-          <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 min-[1800px]:grid-cols-7 min-[2200px]:grid-cols-8">
-            {assets.map((asset, i) => (
-              <AssetCard key={asset.id} asset={asset} index={i} />
-            ))}
-          </div>
+          <>
+            {!isPublicView && (
+              <p className="text-sm text-subtle">
+                Tip: drag an asset onto a folder in the sidebar to move it.
+              </p>
+            )}
+            <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 min-[1800px]:grid-cols-7 min-[2200px]:grid-cols-8">
+              {assets.map((asset, i) => (
+                <AssetCard key={asset.id} asset={asset} index={i} draggable={!isPublicView} />
+              ))}
+            </div>
+          </>
         )}
       </div>
     </div>

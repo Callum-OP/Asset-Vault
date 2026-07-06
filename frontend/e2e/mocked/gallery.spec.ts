@@ -86,4 +86,48 @@ test.describe('Gallery (mocked API)', () => {
     await page.getByRole('button', { name: 'Video', exact: true }).click()
     await expect(page.getByRole('button', { name: /clear \(1\)/i })).toBeVisible()
   })
+
+  test('dragging an asset onto a folder re-files it (PATCH folder_id)', async ({ page }) => {
+    await loginViaToken(page)
+    await mockApi(page, {
+      assets: [makeAsset({ id: 1, original_filename: 'sunset.png' })],
+      folders: [{ id: 10, name: 'Project', parent_id: null, asset_count: 0 }],
+    })
+
+    // Capture the re-file PATCH the drop should trigger.
+    let patchBody: unknown = null
+    await page.route('**/assets/1', (route) => {
+      if (route.request().method() === 'PATCH') {
+        patchBody = route.request().postDataJSON()
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(makeAsset({ id: 1, folder_id: 10 })),
+        })
+      }
+      return route.continue()
+    })
+
+    await page.goto('/')
+    await expect(page.getByText('sunset.png')).toBeVisible()
+    await expect(page.getByText('📁 Project')).toBeVisible()
+
+    // Native HTML5 drag-and-drop with a shared DataTransfer: dispatch the drag
+    // events directly so the card's dragstart and the folder's drop share data.
+    await page.evaluate((folderName: string) => {
+      const card = document.querySelector('a[href="/assets/1"]')!
+      const folderRow = [...document.querySelectorAll('nav div')].find((el) =>
+        el.textContent?.includes(folderName),
+      )!
+      const dt = new DataTransfer()
+      const fire = (el: Element, type: string) =>
+        el.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: dt }))
+      fire(card, 'dragstart')
+      fire(folderRow, 'dragover')
+      fire(folderRow, 'drop')
+      fire(card, 'dragend')
+    }, 'Project')
+
+    await expect.poll(() => patchBody).toEqual({ folder_id: 10 })
+  })
 })
