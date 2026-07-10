@@ -22,6 +22,7 @@ Run from the ``backend`` directory:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import io
 
 from PIL import Image
@@ -70,6 +71,7 @@ def _make_asset(
     """Create one image asset from generated PNG bytes, like a real upload."""
     storage = get_storage()
     data = _png(color)
+    content_hash = hashlib.sha256(data).hexdigest()
     stored_name, file_path = storage.save_file(data, ".png")
     width, height = media.extract_dimensions(data)
     thumbnail_path = storage.save_thumbnail(media.make_thumbnail(data), stored_name)
@@ -82,6 +84,7 @@ def _make_asset(
         file_path=file_path,
         file_size=len(data),
         mime_type="image/png",
+        content_hash=content_hash,
         asset_type=media.AssetType.image,
         thumbnail_path=thumbnail_path,
         width=width,

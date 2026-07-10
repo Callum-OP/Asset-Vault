@@ -8,12 +8,14 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import CurrentUser
+from app.api.deps import CurrentUser, block_guest_mutations
 from app.core.database import get_db
 from app.models import Tag, User
 from app.schemas.tag import TagCreate, TagRead, TagUpdate
 
-router = APIRouter(prefix="/tags", tags=["tags"])
+router = APIRouter(
+    prefix="/tags", tags=["tags"], dependencies=[Depends(block_guest_mutations)]
+)
 
 
 def _get_owned(tag_id: int, db: Session, user: User) -> Tag:

@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Annotated
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
@@ -43,3 +43,20 @@ def get_current_user(
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+_SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+
+
+def block_guest_mutations(request: Request, current_user: CurrentUser) -> None:
+    """Reject write requests from the shared, read-only guest account.
+
+    Applied as a router-level dependency so no individual write endpoint can
+    accidentally admit a guest: any non-safe HTTP method (POST/PUT/PATCH/DELETE)
+    from a guest is refused, while reads pass through unchanged.
+    """
+    if current_user.is_guest and request.method not in _SAFE_METHODS:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Guests have read-only access. Sign in to make changes.",
+        )

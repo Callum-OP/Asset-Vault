@@ -14,12 +14,14 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import CurrentUser
+from app.api.deps import CurrentUser, block_guest_mutations
 from app.core.database import get_db
 from app.models import Asset, Folder, User
 from app.schemas.folder import FolderCreate, FolderRead, FolderUpdate, FolderWithCount
 
-router = APIRouter(prefix="/folders", tags=["folders"])
+router = APIRouter(
+    prefix="/folders", tags=["folders"], dependencies=[Depends(block_guest_mutations)]
+)
 
 
 def _get_owned(folder_id: int, db: Session, user: User) -> Folder:

@@ -17,4 +17,5 @@ class UserRead(BaseModel):
     email: EmailStr
     full_name: str | None = None
     avatar_url: str | None = None
+    is_guest: bool = False
     created_at: datetime

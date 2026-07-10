@@ -55,6 +55,9 @@ class Asset(Base):
     file_path: Mapped[str] = mapped_column(String(512), nullable=False)
     file_size: Mapped[int] = mapped_column(Integer, nullable=False)
     mime_type: Mapped[str] = mapped_column(String(127), nullable=False)
+    # SHA-256 of the raw bytes, used to detect duplicate uploads for an owner.
+    # Nullable so assets predating this column stay valid.
+    content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     asset_type: Mapped[AssetType] = mapped_column(
         SQLEnum(AssetType, name="asset_type"), nullable=False, default=AssetType.other
     )

@@ -8,12 +8,14 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import CurrentUser
+from app.api.deps import CurrentUser, block_guest_mutations
 from app.core.database import get_db
 from app.models import Category, User
 from app.schemas.category import CategoryCreate, CategoryRead, CategoryUpdate
 
-router = APIRouter(prefix="/categories", tags=["categories"])
+router = APIRouter(
+    prefix="/categories", tags=["categories"], dependencies=[Depends(block_guest_mutations)]
+)
 
 
 def _get_owned(category_id: int, db: Session, user: User) -> Category:

@@ -7,6 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import CurrentUser
@@ -22,6 +23,11 @@ from app.services import google_auth
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 settings = get_settings()
+
+# Email for the single shared read-only visitor account. Uses the reserved
+# example.com domain; the account is identified by its ``is_guest`` flag, not
+# this address, so there is only ever one guest row.
+GUEST_EMAIL = "guest@example.com"
 
 
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
@@ -102,6 +108,30 @@ def login_with_google(
 
     db.commit()
     db.refresh(user)
+    return Token(access_token=create_access_token(subject=str(user.id)))
+
+
+@router.post("/guest", response_model=Token)
+def login_as_guest(db: Annotated[Session, Depends(get_db)]) -> Token:
+    """Issue a token for the shared, read-only guest account.
+
+    The guest can browse and download public assets and read their likes and
+    comments, but every write is refused (see ``block_guest_mutations``). The
+    account is created lazily on first use.
+    """
+    user = db.scalar(select(User).where(User.is_guest.is_(True)))
+    if user is None:
+        user = User(email=GUEST_EMAIL, hashed_password=None, is_guest=True)
+        db.add(user)
+        try:
+            db.commit()
+        except IntegrityError:
+            # A concurrent request created it first; reuse that row.
+            db.rollback()
+            user = db.scalar(select(User).where(User.is_guest.is_(True)))
+        else:
+            db.refresh(user)
+    assert user is not None
     return Token(access_token=create_access_token(subject=str(user.id)))
 
 

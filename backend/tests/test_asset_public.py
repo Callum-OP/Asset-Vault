@@ -90,6 +90,46 @@ def test_non_owner_cannot_edit_or_delete_public_asset(
     assert client.delete(f"/assets/{asset['id']}", headers=bob).status_code == 404
 
 
+def test_download_returns_original_file_and_filename(
+    client: TestClient, storage_dir: Path
+) -> None:
+    headers = _auth_headers(client)
+    raw = _png_bytes(color=(12, 34, 56))
+    asset = client.post(
+        "/assets", headers=headers, files={"file": ("myphoto.png", raw, "image/png")}
+    ).json()
+
+    resp = client.get(f"/assets/{asset['id']}/download", headers=headers)
+    assert resp.status_code == 200
+    assert resp.content == raw
+    disposition = resp.headers["content-disposition"]
+    assert disposition.startswith("attachment")
+    # Served under the ORIGINAL filename, not the random stored name.
+    assert 'filename="myphoto.png"' in disposition
+    assert asset["stored_filename"] not in disposition
+    assert resp.headers["content-type"].startswith("image/png")
+
+
+def test_download_requires_authentication(client: TestClient, storage_dir: Path) -> None:
+    headers = _auth_headers(client)
+    asset = _upload(client, headers)
+    assert client.get(f"/assets/{asset['id']}/download").status_code == 401
+
+
+def test_download_enforces_view_permissions(
+    client: TestClient, storage_dir: Path
+) -> None:
+    alice = _auth_headers(client, "alice")
+    bob = _auth_headers(client, "bob")
+    asset = _upload(client, alice)
+
+    # Private: Bob is denied (404, mirroring the read path).
+    assert client.get(f"/assets/{asset['id']}/download", headers=bob).status_code == 404
+    # Made public: Bob can now download it.
+    client.patch(f"/assets/{asset['id']}", headers=alice, json={"is_public": True})
+    assert client.get(f"/assets/{asset['id']}/download", headers=bob).status_code == 200
+
+
 def test_thumbnail_upload_extracts_dominant_colors(
     client: TestClient, storage_dir: Path
 ) -> None:

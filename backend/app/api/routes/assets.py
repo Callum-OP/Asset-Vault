@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
+import hashlib
 import mimetypes
 from pathlib import Path
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy.sql import Select
 
-from app.api.deps import CurrentUser
+from app.api.deps import CurrentUser, block_guest_mutations
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.models import (
@@ -56,7 +58,9 @@ def _like_count_subquery():
     )
 SortOrder = Literal["asc", "desc"]
 
-router = APIRouter(prefix="/assets", tags=["assets"])
+router = APIRouter(
+    prefix="/assets", tags=["assets"], dependencies=[Depends(block_guest_mutations)]
+)
 
 settings = get_settings()
 
@@ -206,8 +210,17 @@ async def upload_asset(
     current_user: CurrentUser,
     db: Annotated[Session, Depends(get_db)],
     storage: Annotated[LocalStorage, Depends(get_storage)],
+    allow_duplicate: Annotated[
+        bool,
+        Query(description="Upload even if an identical file already exists in your library"),
+    ] = False,
 ) -> Asset:
-    """Upload a file: store it, detect its type, and extract preview metadata."""
+    """Upload a file: store it, detect its type, and extract preview metadata.
+
+    Uploads are de-duplicated per owner by content hash: if you already have a
+    byte-identical file, the request is rejected with 409 (and the existing
+    asset's id) unless ``allow_duplicate`` is set.
+    """
     if not file.filename:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Missing filename")
 
@@ -226,6 +239,25 @@ async def upload_asset(
             status.HTTP_413_CONTENT_TOO_LARGE,
             f"File exceeds maximum size of {settings.max_upload_bytes} bytes",
         )
+
+    content_hash = hashlib.sha256(data).hexdigest()
+    if not allow_duplicate:
+        # Check the byte hash before touching disk so a rejected duplicate never
+        # leaves an orphaned file behind.
+        existing = db.scalar(
+            select(Asset).where(
+                Asset.owner_id == current_user.id, Asset.content_hash == content_hash
+            )
+        )
+        if existing is not None:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                detail={
+                    "message": "You already have this file in your library.",
+                    "existing_asset_id": existing.id,
+                    "existing_filename": existing.original_filename,
+                },
+            )
 
     extension = Path(file.filename).suffix.lower()
     stored_name, file_path = storage.save_file(data, extension)
@@ -258,6 +290,7 @@ async def upload_asset(
         file_path=file_path,
         file_size=len(data),
         mime_type=mime_type,
+        content_hash=content_hash,
         asset_type=asset_type,
         thumbnail_path=thumbnail_path,
         width=width,
@@ -594,6 +627,31 @@ def delete_comment(
     db.delete(comment)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/{asset_id}/download")
+def download_asset(
+    asset_id: int,
+    current_user: CurrentUser,
+    db: Annotated[Session, Depends(get_db)],
+    storage: Annotated[LocalStorage, Depends(get_storage)],
+) -> FileResponse:
+    """Download an asset's original file with its original filename.
+
+    Available for any asset the user may view (their own, or another user's
+    public asset). Unlike the ``/storage`` static mount — which serves files
+    under their random stored name for inline previews — this forces a download
+    (``Content-Disposition: attachment``) and restores the original filename.
+    """
+    asset = _get_viewable_asset(asset_id, db, current_user)
+    path = storage.resolve(asset.file_path)
+    if not path.is_file():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
+    return FileResponse(
+        path,
+        media_type=asset.mime_type or "application/octet-stream",
+        filename=asset.original_filename,
+    )
 
 
 @router.get("/{asset_id}", response_model=AssetRead)

@@ -95,6 +95,63 @@ def test_upload_rejects_oversized_file(
     assert resp.status_code == 413
 
 
+def test_duplicate_upload_is_rejected(client: TestClient, storage_dir: Path) -> None:
+    headers = _auth_headers(client)
+    raw = _png_bytes(color=(1, 2, 3))
+    first = client.post(
+        "/assets", headers=headers, files={"file": ("original.png", raw, "image/png")}
+    )
+    assert first.status_code == 201
+
+    # A byte-identical file (even under a different name) is flagged as a dupe.
+    dup = client.post(
+        "/assets", headers=headers, files={"file": ("copy.png", raw, "image/png")}
+    )
+    assert dup.status_code == 409
+    detail = dup.json()["detail"]
+    assert detail["existing_asset_id"] == first.json()["id"]
+    assert detail["existing_filename"] == "original.png"
+    # The rejected upload must not have created a second row or a stray file.
+    assert client.get("/assets", headers=headers).json()["total"] == 1
+
+
+def test_duplicate_upload_allowed_with_flag(client: TestClient, storage_dir: Path) -> None:
+    headers = _auth_headers(client)
+    raw = _png_bytes(color=(4, 5, 6))
+    client.post("/assets", headers=headers, files={"file": ("a.png", raw, "image/png")})
+    dup = client.post(
+        "/assets",
+        headers=headers,
+        params={"allow_duplicate": "true"},
+        files={"file": ("a.png", raw, "image/png")},
+    )
+    assert dup.status_code == 201
+    assert client.get("/assets", headers=headers).json()["total"] == 2
+
+
+def test_duplicate_detection_is_per_owner(client: TestClient, storage_dir: Path) -> None:
+    alice = _auth_headers(client, "alice")
+    bob = _auth_headers(client, "bob")
+    raw = _png_bytes(color=(7, 8, 9))
+    assert client.post(
+        "/assets", headers=alice, files={"file": ("a.png", raw, "image/png")}
+    ).status_code == 201
+    # Bob uploading the same bytes is fine — dedup is scoped to each owner.
+    assert client.post(
+        "/assets", headers=bob, files={"file": ("a.png", raw, "image/png")}
+    ).status_code == 201
+
+
+def test_different_content_is_not_flagged(client: TestClient, storage_dir: Path) -> None:
+    headers = _auth_headers(client)
+    assert client.post(
+        "/assets", headers=headers, files={"file": ("a.png", _png_bytes(color=(10, 10, 10)), "image/png")}
+    ).status_code == 201
+    assert client.post(
+        "/assets", headers=headers, files={"file": ("b.png", _png_bytes(color=(20, 20, 20)), "image/png")}
+    ).status_code == 201
+
+
 def test_list_assets_is_paginated(client: TestClient, storage_dir: Path) -> None:
     headers = _auth_headers(client)
     for i in range(3):

@@ -39,8 +39,14 @@ def upload(
     name: str = "hero.png",
     color: tuple[int, int, int] = (10, 120, 200),
 ) -> dict:
+    # Many tests upload several placeholder images with identical bytes for one
+    # user; opt out of per-owner dedup so this stays a plain "make an asset"
+    # helper. Duplicate detection has its own dedicated tests.
     resp = client.post(
-        "/assets", headers=headers, files={"file": (name, png_bytes(color), "image/png")}
+        "/assets",
+        headers=headers,
+        params={"allow_duplicate": "true"},
+        files={"file": (name, png_bytes(color), "image/png")},
     )
     assert resp.status_code == 201, resp.text
     return resp.json()
