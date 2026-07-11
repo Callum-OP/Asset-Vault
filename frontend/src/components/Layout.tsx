@@ -36,18 +36,26 @@ export function Layout() {
             <Wordmark />
           </Link>
           <div className="flex items-center gap-5 text-lg">
-            {user?.avatar_url && (
-              <img
-                src={user.avatar_url}
-                alt=""
-                className="h-10 w-10 rounded-full ring-2 ring-accent/30"
-              />
+            {user?.is_guest ? (
+              <span className="rounded-full bg-accent/15 px-3 py-1 text-sm font-medium text-accent">
+                👋 Guest · read-only
+              </span>
+            ) : (
+              <>
+                {user?.avatar_url && (
+                  <img
+                    src={user.avatar_url}
+                    alt=""
+                    className="h-10 w-10 rounded-full ring-2 ring-accent/30"
+                  />
+                )}
+                <span className="hidden font-medium text-muted sm:inline">
+                  {user?.full_name ?? user?.email}
+                </span>
+              </>
             )}
-            <span className="hidden font-medium text-muted sm:inline">
-              {user?.full_name ?? user?.email}
-            </span>
             <button onClick={logout} className="btn btn-ghost">
-              Log out
+              {user?.is_guest ? 'Exit' : 'Log out'}
             </button>
           </div>
         </div>

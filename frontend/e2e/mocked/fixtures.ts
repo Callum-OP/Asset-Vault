@@ -6,6 +6,7 @@ export const DEMO_USER = {
   email: 'demo@example.com',
   full_name: 'Demo User',
   avatar_url: null,
+  is_guest: false,
   created_at: '2026-07-01T00:00:00Z',
 }
 

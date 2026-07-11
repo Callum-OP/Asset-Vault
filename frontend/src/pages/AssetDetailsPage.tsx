@@ -6,6 +6,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   addAssetTags,
   deleteAsset,
+  downloadAsset,
   getAsset,
   removeAssetTag,
   setAssetThumbnail,
@@ -107,6 +108,9 @@ export function AssetDetailsPage() {
     mutationFn: (image: Blob) => setAssetThumbnail(assetId, image),
     onSuccess: invalidateAsset,
   })
+  const download = useMutation({
+    mutationFn: () => downloadAsset(assetId, asset!.original_filename),
+  })
 
   if (isLoading) return <p className="text-base text-muted">Loading…</p>
   if (isError || !asset) return <p className="text-base text-red-500">Asset not found.</p>
@@ -190,6 +194,18 @@ export function AssetDetailsPage() {
               <dt className="text-subtle">Uploaded</dt>
               <dd>{new Date(asset.created_at).toLocaleDateString()}</dd>
             </dl>
+            <div className="mt-4">
+              <button
+                onClick={() => download.mutate()}
+                disabled={download.isPending}
+                className="btn btn-accent px-3 py-1.5"
+              >
+                {download.isPending ? 'Downloading…' : '⬇ Download original'}
+              </button>
+              {download.isError && (
+                <p className="mt-1.5 text-sm text-red-500">Download failed. Please try again.</p>
+              )}
+            </div>
           </div>
 
           {asset.dominant_colors && asset.dominant_colors.length > 0 && (
@@ -401,7 +417,13 @@ export function AssetDetailsPage() {
         </div>
       </div>
 
-      {asset.is_public && <AssetSocial asset={asset} currentUserId={user?.id ?? null} />}
+      {asset.is_public && (
+        <AssetSocial
+          asset={asset}
+          currentUserId={user?.id ?? null}
+          readOnly={!!user?.is_guest}
+        />
+      )}
     </div>
   )
 }

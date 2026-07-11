@@ -1,5 +1,24 @@
+import { isAxiosError } from 'axios'
+
 import { api } from './client'
 import type { Asset, AssetList } from './types'
+
+export interface DuplicateInfo {
+  message: string
+  existing_asset_id: number
+  existing_filename: string
+}
+
+/** Extract the duplicate payload from a rejected upload, or null if it wasn't a 409. */
+export function duplicateInfoFromError(err: unknown): DuplicateInfo | null {
+  if (isAxiosError(err) && err.response?.status === 409) {
+    const detail = err.response.data?.detail
+    if (detail && typeof detail === 'object' && 'existing_asset_id' in detail) {
+      return detail as DuplicateInfo
+    }
+  }
+  return null
+}
 
 export interface AssetUpdate {
   description?: string | null
@@ -30,10 +49,12 @@ export async function listAssets(params: AssetQuery = {}): Promise<AssetList> {
   return data
 }
 
-export async function uploadAsset(file: File): Promise<Asset> {
+export async function uploadAsset(file: File, allowDuplicate = false): Promise<Asset> {
   const form = new FormData()
   form.append('file', file)
-  const { data } = await api.post<Asset>('/assets', form)
+  const { data } = await api.post<Asset>('/assets', form, {
+    params: allowDuplicate ? { allow_duplicate: true } : undefined,
+  })
   return data
 }
 
@@ -59,6 +80,21 @@ export async function addAssetTags(id: number, tagIds: number[]): Promise<Asset>
 export async function removeAssetTag(id: number, tagId: number): Promise<Asset> {
   const { data } = await api.delete<Asset>(`/assets/${id}/tags/${tagId}`)
   return data
+}
+
+export async function downloadAsset(id: number, filename: string): Promise<void> {
+  // Fetch through the authenticated client (adds the JWT) so downloads work
+  // for public assets too, then trigger a save under the original filename —
+  // the raw /storage URL would save under the random stored name instead.
+  const { data } = await api.get<Blob>(`/assets/${id}/download`, { responseType: 'blob' })
+  const url = URL.createObjectURL(data)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
 }
 
 export async function setAssetThumbnail(id: number, image: Blob): Promise<Asset> {

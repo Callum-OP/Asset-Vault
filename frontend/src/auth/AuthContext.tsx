@@ -5,6 +5,7 @@ import { getToken, setToken } from '../api/client'
 import {
   fetchMe,
   googleLogin as apiGoogleLogin,
+  guestLogin as apiGuestLogin,
   login as apiLogin,
   register as apiRegister,
 } from '../api/auth'
@@ -16,6 +17,7 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string) => Promise<void>
   loginWithGoogle: (idToken: string) => Promise<void>
+  loginAsGuest: () => Promise<void>
   logout: () => void
 }
 
@@ -57,13 +59,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await establish(access_token)
   }
 
+  async function loginAsGuest(): Promise<void> {
+    const { access_token } = await apiGuestLogin()
+    await establish(access_token)
+  }
+
   function logout(): void {
     setToken(null)
     setUser(null)
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, loginWithGoogle, logout }}>
+    <AuthContext.Provider
+      value={{ user, loading, login, register, loginWithGoogle, loginAsGuest, logout }}
+    >
       {children}
     </AuthContext.Provider>
   )

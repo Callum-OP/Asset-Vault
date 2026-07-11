@@ -1,8 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 
-import { listAssets, updateAsset, uploadAsset } from '../api/assets'
-import type { AssetQuery } from '../api/assets'
+import { duplicateInfoFromError, listAssets, updateAsset, uploadAsset } from '../api/assets'
+import type { AssetQuery, DuplicateInfo } from '../api/assets'
 import { createFolder, deleteFolder, listFolders, updateFolder } from '../api/folders'
 import { buildFolderTree, folderPath } from '../api/folderTree'
 import { listCategories, listTags } from '../api/taxonomy'
@@ -13,11 +18,16 @@ import type { Filters } from '../components/FilterBar'
 import { FolderSidebar } from '../components/FolderSidebar'
 import type { FolderSelection } from '../components/FolderSidebar'
 import { UploadDropzone } from '../components/UploadDropzone'
+import { useAuth } from '../auth/AuthContext'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 
 export function GalleryPage() {
   const queryClient = useQueryClient()
-  const [selection, setSelection] = useState<FolderSelection>('all')
+  const { user } = useAuth()
+  // Guests are read-only visitors: they only ever see the shared/public gallery,
+  // with no folders, uploads, or editing.
+  const isGuest = !!user?.is_guest
+  const [selection, setSelection] = useState<FolderSelection>(isGuest ? 'public' : 'all')
   const [includeSubfolders, setIncludeSubfolders] = useState(true)
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
 
@@ -42,7 +52,7 @@ export function GalleryPage() {
 
   const isPublicView = selection === 'public'
 
-  const assetParams: AssetQuery = { limit: 100, sort: filters.sort, order: filters.order }
+  const assetParams: AssetQuery = { sort: filters.sort, order: filters.order }
   if (isPublicView) assetParams.scope = 'public'
   else if (selection === 'unfiled') assetParams.unfiled = true
   else if (typeof selection === 'number') {
@@ -55,19 +65,49 @@ export function GalleryPage() {
   if (filters.tags.length) assetParams.tag = filters.tags
   if (filters.color) assetParams.color = filters.color
 
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['assets', selection, includeSubfolders, { ...filters, q: debouncedQ }],
-    queryFn: () => listAssets(assetParams),
-  })
+  const PAGE_SIZE = 30
+  const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useInfiniteQuery({
+      queryKey: ['assets', selection, includeSubfolders, { ...filters, q: debouncedQ }],
+      queryFn: ({ pageParam }) =>
+        listAssets({ ...assetParams, limit: PAGE_SIZE, offset: pageParam }),
+      initialPageParam: 0,
+      getNextPageParam: (lastPage) => {
+        const loaded = lastPage.offset + lastPage.items.length
+        return loaded < lastPage.total ? loaded : undefined
+      },
+    })
+
+  // Auto-load the next page when the sentinel below the grid scrolls into view.
+  const loadMoreRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    const el = loadMoreRef.current
+    if (!el || !hasNextPage) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage()
+        }
+      },
+      { rootMargin: '600px' },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['assets'] })
     queryClient.invalidateQueries({ queryKey: ['folders'] })
   }
 
+  // Files the backend flagged as byte-identical to something already in the
+  // library. We surface a warning and let the user upload anyway or skip.
+  const [duplicates, setDuplicates] = useState<{ file: File; info: DuplicateInfo }[]>([])
+  const [uploadFailed, setUploadFailed] = useState(false)
+
   const upload = useMutation({
-    mutationFn: async (file: File) => {
-      const asset = await uploadAsset(file)
+    mutationFn: async ({ file, allowDuplicate }: { file: File; allowDuplicate?: boolean }) => {
+      const asset = await uploadAsset(file, allowDuplicate)
       // Uploads land in the folder you're currently viewing.
       if (typeof selection === 'number') {
         return updateAsset(asset.id, { folder_id: selection })
@@ -75,6 +115,16 @@ export function GalleryPage() {
       return asset
     },
     onSuccess: invalidate,
+    onError: (err, variables) => {
+      const info = duplicateInfoFromError(err)
+      if (info) {
+        setDuplicates((prev) =>
+          prev.some((d) => d.file === variables.file) ? prev : [...prev, { file: variables.file, info }],
+        )
+      } else {
+        setUploadFailed(true)
+      }
+    },
   })
 
   const createFolderMutation = useMutation({
@@ -99,7 +149,17 @@ export function GalleryPage() {
   })
 
   function handleFiles(files: File[]) {
-    files.forEach((file) => upload.mutate(file))
+    setUploadFailed(false)
+    files.forEach((file) => upload.mutate({ file }))
+  }
+
+  function uploadAnyway(file: File) {
+    setDuplicates((prev) => prev.filter((d) => d.file !== file))
+    upload.mutate({ file, allowDuplicate: true })
+  }
+
+  function skipDuplicate(file: File) {
+    setDuplicates((prev) => prev.filter((d) => d.file !== file))
   }
 
   function handleDeleteFolder(folder: FolderWithCount) {
@@ -112,7 +172,8 @@ export function GalleryPage() {
     }
   }
 
-  const assets = data?.items ?? []
+  const assets = data?.pages.flatMap((page) => page.items) ?? []
+  const total = data?.pages[0]?.total ?? 0
   const crumbs = typeof selection === 'number' ? folderPath(folders ?? [], selection) : []
   const filtersActive = activeFilterCount(filters) > 0
 
@@ -122,20 +183,24 @@ export function GalleryPage() {
       : selection === 'unfiled'
         ? 'Unfiled'
         : selection === 'public'
-          ? "Others' assets"
+          ? isGuest
+            ? 'Shared assets'
+            : "Others' assets"
           : crumbs.at(-1)?.name
 
   return (
     <div className="flex gap-10">
-      <FolderSidebar
-        tree={tree}
-        selection={selection}
-        onSelect={setSelection}
-        onCreate={(name, parentId) => createFolderMutation.mutate({ name, parentId })}
-        onRename={(id, name) => renameFolderMutation.mutate({ id, name })}
-        onDelete={handleDeleteFolder}
-        onMoveAsset={(assetId, folderId) => moveAsset.mutate({ assetId, folderId })}
-      />
+      {!isGuest && (
+        <FolderSidebar
+          tree={tree}
+          selection={selection}
+          onSelect={setSelection}
+          onCreate={(name, parentId) => createFolderMutation.mutate({ name, parentId })}
+          onRename={(id, name) => renameFolderMutation.mutate({ id, name })}
+          onDelete={handleDeleteFolder}
+          onMoveAsset={(assetId, folderId) => moveAsset.mutate({ assetId, folderId })}
+        />
+      )}
 
       <div className="min-w-0 flex-1 space-y-6">
         <div className="flex items-end justify-between">
@@ -156,9 +221,11 @@ export function GalleryPage() {
             <h1 className="text-5xl font-extrabold tracking-tight text-gradient">{heading}</h1>
             <p className="mt-2 text-lg text-muted">
               {isPublicView
-                ? `${data ? data.total : 0} public item(s) · shared by you and other users`
+                ? isGuest
+                  ? `${total} shared item(s) · read-only`
+                  : `${total} public item(s) · shared by you and other users`
                 : data
-                  ? `${data.total} item(s)`
+                  ? `${total} item(s)`
                   : ' '}
             </p>
           </div>
@@ -179,11 +246,34 @@ export function GalleryPage() {
         {!isPublicView && (
           <>
             <UploadDropzone onFiles={handleFiles} busy={upload.isPending} />
-            {upload.isError && (
+            {uploadFailed && (
               <p className="text-sm text-red-500">
                 Some files could not be uploaded (unsupported type or too large).
               </p>
             )}
+            {duplicates.map(({ file, info }) => (
+              <div
+                key={file.name}
+                className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-fg"
+              >
+                <span className="flex-1">
+                  <strong>{file.name}</strong> looks identical to{' '}
+                  <strong>{info.existing_filename}</strong>, already in your library.
+                </span>
+                <button
+                  onClick={() => uploadAnyway(file)}
+                  className="btn btn-ghost px-3 py-1.5"
+                >
+                  Upload anyway
+                </button>
+                <button
+                  onClick={() => skipDuplicate(file)}
+                  className="btn btn-ghost px-3 py-1.5"
+                >
+                  Skip
+                </button>
+              </div>
+            ))}
           </>
         )}
 
@@ -233,6 +323,14 @@ export function GalleryPage() {
                 <AssetCard key={asset.id} asset={asset} index={i} draggable={!isPublicView} />
               ))}
             </div>
+            {/* Sentinel: scrolling near this triggers the next page. */}
+            <div ref={loadMoreRef} aria-hidden className="h-px" />
+            {isFetchingNextPage && (
+              <p className="py-4 text-center text-sm text-muted">Loading more…</p>
+            )}
+            {!hasNextPage && total > PAGE_SIZE && (
+              <p className="py-4 text-center text-sm text-subtle">That's everything.</p>
+            )}
           </>
         )}
       </div>

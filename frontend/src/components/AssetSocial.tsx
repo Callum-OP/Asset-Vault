@@ -8,10 +8,12 @@ import type { Asset, Comment } from '../api/types'
 interface Props {
   asset: Asset
   currentUserId: number | null
+  // Guests can read likes/comments but not interact.
+  readOnly?: boolean
 }
 
 /** Likes and threaded comments for a public asset (the social surface). */
-export function AssetSocial({ asset, currentUserId }: Props) {
+export function AssetSocial({ asset, currentUserId, readOnly = false }: Props) {
   const queryClient = useQueryClient()
   const [draft, setDraft] = useState('')
   const [replyingTo, setReplyingTo] = useState<number | null>(null)
@@ -58,7 +60,7 @@ export function AssetSocial({ asset, currentUserId }: Props) {
   })
 
   const canDelete = (comment: Comment) =>
-    currentUserId === comment.user_id || currentUserId === asset.owner_id
+    !readOnly && (currentUserId === comment.user_id || currentUserId === asset.owner_id)
 
   const childrenOf = (parentId: number | null) =>
     (comments ?? []).filter((c) => c.parent_id === parentId)
@@ -110,15 +112,17 @@ export function AssetSocial({ asset, currentUserId }: Props) {
             {comment.body}
           </p>
           <div className="mt-1 flex items-center gap-3">
-            <button
-              onClick={() => {
-                setReplyingTo((cur) => (cur === comment.id ? null : comment.id))
-                setReplyDraft('')
-              }}
-              className="text-xs font-medium text-subtle transition hover:text-accent"
-            >
-              {replyingTo === comment.id ? 'Cancel' : 'Reply'}
-            </button>
+            {!readOnly && (
+              <button
+                onClick={() => {
+                  setReplyingTo((cur) => (cur === comment.id ? null : comment.id))
+                  setReplyDraft('')
+                }}
+                className="text-xs font-medium text-subtle transition hover:text-accent"
+              >
+                {replyingTo === comment.id ? 'Cancel' : 'Reply'}
+              </button>
+            )}
             {replies.length > 0 && (
               <button
                 onClick={() => toggleExpanded(comment.id)}
@@ -168,20 +172,27 @@ export function AssetSocial({ asset, currentUserId }: Props) {
       )}
 
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-        <button
-          type="button"
-          onClick={() => toggleLike.mutate()}
-          disabled={toggleLike.isPending}
-          aria-pressed={asset.liked_by_me}
-          className={`flex items-center gap-2 rounded-full border px-4 py-2 text-base font-medium transition active:scale-95 ${
-            asset.liked_by_me
-              ? 'border-accent/40 bg-accent/10 text-accent'
-              : 'border-border text-muted hover:border-border-strong hover:text-fg'
-          }`}
-        >
-          <span>{asset.liked_by_me ? '❤️' : '🤍'}</span>
-          {asset.like_count} {asset.like_count === 1 ? 'like' : 'likes'}
-        </button>
+        {readOnly ? (
+          <span className="flex items-center gap-2 rounded-full border border-border px-4 py-2 text-base font-medium text-muted">
+            <span>🤍</span>
+            {asset.like_count} {asset.like_count === 1 ? 'like' : 'likes'}
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={() => toggleLike.mutate()}
+            disabled={toggleLike.isPending}
+            aria-pressed={asset.liked_by_me}
+            className={`flex items-center gap-2 rounded-full border px-4 py-2 text-base font-medium transition active:scale-95 ${
+              asset.liked_by_me
+                ? 'border-accent/40 bg-accent/10 text-accent'
+                : 'border-border text-muted hover:border-border-strong hover:text-fg'
+            }`}
+          >
+            <span>{asset.liked_by_me ? '❤️' : '🤍'}</span>
+            {asset.like_count} {asset.like_count === 1 ? 'like' : 'likes'}
+          </button>
+        )}
 
         <span className="text-sm text-muted">
           💬 {asset.comment_count} {asset.comment_count === 1 ? 'comment' : 'comments'}
@@ -195,22 +206,26 @@ export function AssetSocial({ asset, currentUserId }: Props) {
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="Add a comment…"
-          maxLength={2000}
-          className="input flex-1 py-1.5"
-        />
-        <button
-          type="submit"
-          disabled={!draft.trim() || postComment.isPending}
-          className="btn btn-accent px-3 py-1.5"
-        >
-          Post
-        </button>
-      </form>
+      {readOnly ? (
+        <p className="text-sm text-subtle">Sign in to like or comment.</p>
+      ) : (
+        <form onSubmit={handleSubmit} className="flex gap-2">
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Add a comment…"
+            maxLength={2000}
+            className="input flex-1 py-1.5"
+          />
+          <button
+            type="submit"
+            disabled={!draft.trim() || postComment.isPending}
+            className="btn btn-accent px-3 py-1.5"
+          >
+            Post
+          </button>
+        </form>
+      )}
     </div>
   )
 }

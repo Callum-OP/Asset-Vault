@@ -76,6 +76,7 @@ export interface User {
   email: string
   full_name: string | null
   avatar_url: string | null
+  is_guest: boolean
   created_at: string
 }
 

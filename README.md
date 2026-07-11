@@ -97,11 +97,13 @@ setup): `npm run test:e2e:ui` opens Playwright's interactive UI mode.
 - **Postgres:** local server on `:5432`, default `postgres`/`postgres`, database `assetvault`.
 
 ## Authentication
-The API supports two ways to sign in, both of which return the same app JWT:
+The API supports three ways to sign in, all of which return the same app JWT:
 - **Email + password** — `POST /auth/register`, then `POST /auth/login`.
 - **Sign in with Google** (passwordless) — the browser gets a Google ID token and
   posts it to `POST /auth/google`; the backend verifies it and logs the user in,
   creating (or linking) the account automatically.
+- **Continue as guest** — `POST /auth/guest` issues a token for a single shared,
+  read-only visitor account (created on first use). See **Guest access** below.
 
 Google Sign-In is **optional** and stays disabled until you set `GOOGLE_CLIENT_ID`.
 While disabled, `POST /auth/google` returns `503`; the rest of auth is unaffected.
@@ -134,6 +136,16 @@ You need a free **OAuth Client ID** from Google. It's public (safe to commit to
 
 > Until `VITE_GOOGLE_CLIENT_ID` is set, the Google button is simply hidden and
 > email/password auth works as normal.
+
+### Guest access
+The login page has a **Continue as guest** button for a look around without an
+account. Guests share one read-only account and can:
+- browse the **Shared assets** gallery (every public asset),
+- open an asset's details, **download** the original, and read its likes/comments.
+
+Guests **cannot** upload, edit, delete, re-file, like, or comment — every write
+is refused server-side with `403` (enforced centrally: a guest token may only use
+safe HTTP methods). Private assets stay invisible to guests (`404`).
 
 ## Public & private assets
 Every asset is **private by default** — only its owner can see or edit it. On an

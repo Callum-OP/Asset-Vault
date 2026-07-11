@@ -18,6 +18,11 @@ export async function googleLogin(idToken: string): Promise<Token> {
   return data
 }
 
+export async function guestLogin(): Promise<Token> {
+  const { data } = await api.post<Token>('/auth/guest')
+  return data
+}
+
 export async function fetchMe(): Promise<User> {
   const { data } = await api.get<User>('/auth/me')
   return data

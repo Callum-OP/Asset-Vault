@@ -8,7 +8,7 @@ import { Wordmark } from '../components/Wordmark'
 import { GOOGLE_CLIENT_ID } from '../config'
 
 export function LoginPage() {
-  const { login } = useAuth()
+  const { login, loginAsGuest } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -24,6 +24,19 @@ export function LoginPage() {
       navigate('/')
     } catch {
       setError('Incorrect email or password')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onGuest() {
+    setError(null)
+    setBusy(true)
+    try {
+      await loginAsGuest()
+      navigate('/')
+    } catch {
+      setError('Could not start a guest session')
     } finally {
       setBusy(false)
     }
@@ -87,6 +100,20 @@ export function LoginPage() {
             </div>
           </div>
         )}
+
+        <div className="mt-4">
+          {!GOOGLE_CLIENT_ID && (
+            <div className="my-3 flex items-center gap-3 text-xs text-subtle">
+              <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
+            </div>
+          )}
+          <button type="button" onClick={onGuest} disabled={busy} className="btn btn-ghost w-full">
+            Continue as guest
+          </button>
+          <p className="mt-2 text-center text-xs text-subtle">
+            Browse and download shared assets — read-only.
+          </p>
+        </div>
 
         <p className="mt-8 text-center text-base text-muted">
           No account?{' '}

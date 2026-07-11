@@ -1,6 +1,8 @@
-import { lazy, Suspense, useCallback, useRef } from 'react'
+import { lazy, Suspense, useCallback, useRef, useState } from 'react'
 
+import { downloadAsset } from '../api/assets'
 import type { Asset } from '../api/types'
+import { FullscreenViewer } from './FullscreenViewer'
 
 // Three.js is heavy, so the 3D viewer is code-split and only loaded when an
 // actual model is displayed.
@@ -16,44 +18,80 @@ interface Props {
 
 export function AssetPreview({ asset, onCapture }: Props) {
   const fileUrl = `/storage/${asset.file_path}`
+  const [expanded, setExpanded] = useState(false)
+  const expand = () => setExpanded(true)
 
-  if (asset.asset_type === 'model_3d') {
+  function renderPreview() {
+    if (asset.asset_type === 'model_3d') {
+      return (
+        <div className="relative h-[480px] overflow-hidden rounded-xl border border-border bg-gradient-to-b from-surface-2 to-canvas">
+          <Suspense
+            fallback={
+              <div className="flex h-full items-center justify-center text-sm text-subtle">
+                Loading 3D viewer…
+              </div>
+            }
+          >
+            <ModelViewer key={fileUrl} url={fileUrl} onCapture={onCapture} />
+          </Suspense>
+          <ExpandButton onClick={expand} />
+        </div>
+      )
+    }
+
+    if (asset.asset_type === 'video') {
+      return <VideoPreview asset={asset} onCapture={onCapture} onExpand={expand} />
+    }
+
+    if (asset.asset_type === 'image' || asset.asset_type === 'gif' || asset.asset_type === 'texture') {
+      return (
+        <div className="relative">
+          <img
+            src={fileUrl}
+            alt={asset.original_filename}
+            className="max-h-[480px] w-full rounded-xl border border-border bg-surface-2 object-contain"
+          />
+          <ExpandButton onClick={expand} />
+        </div>
+      )
+    }
+
     return (
-      <div className="h-[480px] overflow-hidden rounded-xl border border-border bg-gradient-to-b from-surface-2 to-canvas">
-        <Suspense
-          fallback={
-            <div className="flex h-full items-center justify-center text-sm text-subtle">
-              Loading 3D viewer…
-            </div>
-          }
+      <div className="flex h-[300px] flex-col items-center justify-center gap-3 rounded-xl border border-border bg-surface text-muted">
+        <span className="text-sm">No preview available for this file type.</span>
+        <button
+          type="button"
+          onClick={() => downloadAsset(asset.id, asset.original_filename)}
+          className="text-sm font-medium text-accent hover:text-accent-hover"
         >
-          <ModelViewer key={fileUrl} url={fileUrl} onCapture={onCapture} />
-        </Suspense>
+          Download original
+        </button>
       </div>
     )
   }
 
-  if (asset.asset_type === 'video') {
-    return <VideoPreview asset={asset} onCapture={onCapture} />
-  }
-
-  if (asset.asset_type === 'image' || asset.asset_type === 'gif' || asset.asset_type === 'texture') {
-    return (
-      <img
-        src={fileUrl}
-        alt={asset.original_filename}
-        className="max-h-[480px] w-full rounded-xl border border-border bg-surface-2 object-contain"
-      />
-    )
-  }
-
   return (
-    <div className="flex h-[300px] flex-col items-center justify-center gap-3 rounded-xl border border-border bg-surface text-muted">
-      <span className="text-sm">No preview available for this file type.</span>
-      <a href={fileUrl} download className="text-sm font-medium text-accent hover:text-accent-hover">
-        Download original
-      </a>
-    </div>
+    <>
+      {renderPreview()}
+      {expanded && <FullscreenViewer asset={asset} onClose={() => setExpanded(false)} />}
+    </>
+  )
+}
+
+/** Small overlay button that opens the fullscreen viewer. */
+function ExpandButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="View fullscreen"
+      title="View fullscreen"
+      className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-lg bg-black/50 text-white backdrop-blur-sm transition hover:bg-black/70"
+    >
+      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+      </svg>
+    </button>
   )
 }
 
@@ -67,9 +105,11 @@ export function AssetPreview({ asset, onCapture }: Props) {
 function VideoPreview({
   asset,
   onCapture,
+  onExpand,
 }: {
   asset: Asset
   onCapture?: (image: Blob) => void
+  onExpand: () => void
 }) {
   const fileUrl = `/storage/${asset.file_path}`
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -109,14 +149,17 @@ function VideoPreview({
 
   return (
     <div className="space-y-2">
-      <video
-        ref={videoRef}
-        src={fileUrl}
-        controls
-        preload="auto"
-        onLoadedData={handleLoadedData}
-        className="max-h-[480px] w-full rounded-xl border border-border bg-black"
-      />
+      <div className="relative">
+        <video
+          ref={videoRef}
+          src={fileUrl}
+          controls
+          preload="auto"
+          onLoadedData={handleLoadedData}
+          className="max-h-[480px] w-full rounded-xl border border-border bg-black"
+        />
+        <ExpandButton onClick={onExpand} />
+      </div>
       {onCapture && (
         <button type="button" onClick={capture} className="btn btn-ghost px-3 py-1.5">
           Set current frame as thumbnail
