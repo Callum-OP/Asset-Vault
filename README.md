@@ -4,8 +4,6 @@ A local/private **Digital Asset Manager (DAM)** for cataloging 2D & 3D creative 
 (`.fbx`, `.obj`, `.gltf/.glb`, `.png`, `.jpg`, `.gif`, videos, textures) with a searchable
 visual browser and an interactive Three.js viewport.
 
-See **[DEVELOPMENT_PLAN.md](./DEVELOPMENT_PLAN.md)** for the full roadmap.
-
 ## Stack
 - **Backend:** FastAPI + SQLAlchemy + Alembic + PostgreSQL (managed with `uv`)
 - **Frontend:** React + Vite + TypeScript + react-three-fiber
@@ -144,8 +142,7 @@ account. Guests share one read-only account and can:
 - open an asset's details, **download** the original, and read its likes/comments.
 
 Guests **cannot** upload, edit, delete, re-file, like, or comment — every write
-is refused server-side with `403` (enforced centrally: a guest token may only use
-safe HTTP methods). Private assets stay invisible to guests (`404`).
+is refused server-side. Private assets stay invisible to guests.
 
 ## Public & private assets
 Every asset is **private by default** — only its owner can see or edit it. On an
@@ -156,11 +153,10 @@ Public assets:
   delete, or re-file them),
 - stay editable and deletable only by their owner.
 
-The sidebar's own-asset views are grouped under **All my assets** (with the
-usual folders and **Unfiled**), while **Others' assets** lists every public
-asset — those shared by other users *and* your own public ones, so you can
-confirm an asset actually went public. Your private assets never appear there.
-A public asset's details page shows **who shared it** (the owner's display name).
+In the sidebar, **All my assets** holds your own folders (and **Unfiled**), while
+**Others' assets** lists every public asset — shared by others *and* your own
+public ones, so you can confirm something went public. A public asset's details
+page shows **who shared it**.
 
 ### Likes & comments
 Public assets have a lightweight social layer (Pinterest-style):
@@ -184,10 +180,6 @@ Public assets have a lightweight social layer (Pinterest-style):
   uploads), so captured assets become colour-searchable.
 - **Upload size limit:** capped by `MAX_UPLOAD_BYTES` (default 50 MiB). Oversized
   requests are rejected early via the `Content-Length` header.
-- **Optional, not included:** video *first-frame* server-side thumbnails require
-  `ffmpeg` (the app captures a frame client-side instead), and a Dockerfile is
-  omitted since this setup runs directly against local Postgres + filesystem
-  storage. Both can be added later without touching the core.
 
 ## Project layout
 ```
